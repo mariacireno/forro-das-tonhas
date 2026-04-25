@@ -1,0 +1,33 @@
+const BASE = '/api'
+
+async function req(path, options = {}) {
+  const res = await fetch(`${BASE}${path}`, {
+    headers: { 'Content-Type': 'application/json' },
+    ...options,
+  })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error(err.error || 'Erro na requisição')
+  }
+  return res.json()
+}
+
+export const api = {
+  // Tasks
+  getTasks: () => req('/tasks'),
+  createTask: (data) => req('/tasks', { method: 'POST', body: JSON.stringify(data) }),
+  updateTask: (id, data) => req(`/tasks/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  deleteTask: (id) => req(`/tasks/${id}`, { method: 'DELETE' }),
+
+  // Transactions
+  getTransactions: () => req('/transactions'),
+  createTransaction: (data) => req('/transactions', { method: 'POST', body: JSON.stringify(data) }),
+  deleteTransaction: (id) => req(`/transactions/${id}`, { method: 'DELETE' }),
+  getFinancialSummary: () => req('/transactions/summary'),
+
+  // Tickets
+  getTickets: () => req('/tickets'),
+  createTicket: (data) => req('/tickets', { method: 'POST', body: JSON.stringify(data) }),
+  deleteTicket: (id) => req(`/tickets/${id}`, { method: 'DELETE' }),
+  getTicketSummary: () => req('/tickets/summary'),
+}
