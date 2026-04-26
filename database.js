@@ -1,7 +1,11 @@
 const Database = require('better-sqlite3');
 const path = require('path');
+const fs = require('fs');
 
-const db = new Database(path.join(__dirname, 'forro.db'));
+const dbDir = process.env.DB_PATH || __dirname;
+fs.mkdirSync(dbDir, { recursive: true });
+
+const db = new Database(path.join(dbDir, 'forro.db'));
 
 db.exec(`
   CREATE TABLE IF NOT EXISTS tasks (
