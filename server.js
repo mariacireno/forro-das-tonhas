@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
+const { runSeed } = require('./seed');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -23,4 +24,5 @@ if (process.env.NODE_ENV === 'production') {
 
 app.listen(PORT, () => {
   console.log(`Forró das Tonhas rodando na porta ${PORT}`);
+  runSeed();
 });
