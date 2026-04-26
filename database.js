@@ -35,6 +35,15 @@ db.exec(`
     data TEXT,
     created_at TEXT DEFAULT (datetime('now'))
   );
+
+  CREATE TABLE IF NOT EXISTS checklist_items (
+    id TEXT PRIMARY KEY,
+    task_id TEXT NOT NULL,
+    texto TEXT NOT NULL,
+    concluido INTEGER DEFAULT 0,
+    created_at TEXT DEFAULT (datetime('now')),
+    FOREIGN KEY (task_id) REFERENCES tasks(id) ON DELETE CASCADE
+  );
 `);
 
 module.exports = db;

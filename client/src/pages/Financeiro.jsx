@@ -116,7 +116,7 @@ export default function Financeiro() {
       </div>
 
       {/* Resumo */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <div className="card text-center">
           <TrendingUp size={20} className="text-green-600 mx-auto mb-2" />
           <p className="text-xs text-tonha-brown/60">Receitas</p>

@@ -130,7 +130,7 @@ export default function Ingressos() {
       </div>
 
       {/* Resumo */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <div className="card text-center">
           <Ticket size={22} className="text-tonha-terra mx-auto mb-2" />
           <p className="text-xs text-tonha-brown/60">Total vendidos</p>

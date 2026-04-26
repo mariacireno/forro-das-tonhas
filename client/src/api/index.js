@@ -30,4 +30,10 @@ export const api = {
   createTicket: (data) => req('/tickets', { method: 'POST', body: JSON.stringify(data) }),
   deleteTicket: (id) => req(`/tickets/${id}`, { method: 'DELETE' }),
   getTicketSummary: () => req('/tickets/summary'),
+
+  // Checklist
+  getChecklist: (taskId) => req(`/tasks/${taskId}/checklist`),
+  createChecklistItem: (taskId, data) => req(`/tasks/${taskId}/checklist`, { method: 'POST', body: JSON.stringify(data) }),
+  updateChecklistItem: (taskId, itemId, data) => req(`/tasks/${taskId}/checklist/${itemId}`, { method: 'PUT', body: JSON.stringify(data) }),
+  deleteChecklistItem: (taskId, itemId) => req(`/tasks/${taskId}/checklist/${itemId}`, { method: 'DELETE' }),
 }

@@ -9,6 +9,7 @@ app.use(cors());
 app.use(express.json());
 
 app.use('/api/tasks', require('./routes/tasks'));
+app.use('/api/tasks/:taskId/checklist', require('./routes/checklist'));
 app.use('/api/transactions', require('./routes/transactions'));
 app.use('/api/tickets', require('./routes/tickets'));
 
