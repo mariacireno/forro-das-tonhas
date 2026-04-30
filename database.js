@@ -40,6 +40,15 @@ db.exec(`
     created_at TEXT DEFAULT (datetime('now'))
   );
 
+  CREATE TABLE IF NOT EXISTS orcamentos (
+    id TEXT PRIMARY KEY,
+    tipo TEXT NOT NULL,
+    categoria TEXT DEFAULT 'outros',
+    valor REAL NOT NULL,
+    descricao TEXT,
+    created_at TEXT DEFAULT (datetime('now'))
+  );
+
   CREATE TABLE IF NOT EXISTS checklist_items (
     id TEXT PRIMARY KEY,
     task_id TEXT NOT NULL,

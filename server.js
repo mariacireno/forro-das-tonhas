@@ -13,6 +13,7 @@ app.use('/api/tasks', require('./routes/tasks'));
 app.use('/api/tasks/:taskId/checklist', require('./routes/checklist'));
 app.use('/api/transactions', require('./routes/transactions'));
 app.use('/api/tickets', require('./routes/tickets'));
+app.use('/api/orcamentos', require('./routes/orcamentos'));
 
 // Serve o frontend em produção
 if (process.env.NODE_ENV === 'production') {

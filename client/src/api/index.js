@@ -31,6 +31,13 @@ export const api = {
   deleteTicket: (id) => req(`/tickets/${id}`, { method: 'DELETE' }),
   getTicketSummary: () => req('/tickets/summary'),
 
+  // Orçamentos
+  getOrcamentos: () => req('/orcamentos'),
+  createOrcamento: (data) => req('/orcamentos', { method: 'POST', body: JSON.stringify(data) }),
+  updateOrcamento: (id, data) => req(`/orcamentos/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  deleteOrcamento: (id) => req(`/orcamentos/${id}`, { method: 'DELETE' }),
+  getOrcamentoSummary: () => req('/orcamentos/summary'),
+
   // Checklist
   getChecklist: (taskId) => req(`/tasks/${taskId}/checklist`),
   createChecklistItem: (taskId, data) => req(`/tasks/${taskId}/checklist`, { method: 'POST', body: JSON.stringify(data) }),
