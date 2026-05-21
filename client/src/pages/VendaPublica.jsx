@@ -2,10 +2,43 @@ import { useState, useEffect } from 'react'
 import QRCode from 'qrcode'
 import { formatBRL } from '../utils/format'
 
+function Stepper({ label, preco, value, onInc, onDec, maxReached }) {
+  return (
+    <div className="flex items-center justify-between p-3 bg-tonha-sand/30 rounded-xl border border-tonha-sand">
+      <div>
+        <p className="text-sm font-medium text-tonha-brown">{label}</p>
+        {preco > 0
+          ? <p className="text-xs text-tonha-brown/50">{formatBRL(preco)} cada</p>
+          : <p className="text-xs text-tonha-brown/40">valor não configurado</p>
+        }
+      </div>
+      <div className="flex items-center gap-3">
+        <button
+          type="button"
+          onClick={onDec}
+          disabled={value === 0}
+          className="w-8 h-8 rounded-full border border-tonha-sand bg-white text-tonha-brown font-bold text-lg leading-none disabled:opacity-30 transition-opacity"
+        >
+          −
+        </button>
+        <span className="w-5 text-center font-bold text-tonha-brown text-base">{value}</span>
+        <button
+          type="button"
+          onClick={onInc}
+          disabled={maxReached}
+          className="w-8 h-8 rounded-full border border-tonha-terra bg-tonha-terra/10 text-tonha-darkterra font-bold text-lg leading-none disabled:opacity-30 transition-opacity"
+        >
+          +
+        </button>
+      </div>
+    </div>
+  )
+}
+
 export default function VendaPublica() {
   const [config, setConfig] = useState({})
   const [loadingConfig, setLoadingConfig] = useState(true)
-  const [form, setForm] = useState({ nome: '', email: '', tipo: 'inteira', quantidade: 1 })
+  const [form, setForm] = useState({ nome: '', email: '', quantidade_inteira: 0, quantidade_meia: 0 })
   const [enviando, setEnviando] = useState(false)
   const [resultado, setResultado] = useState(null)
   const [erro, setErro] = useState('')
@@ -19,12 +52,16 @@ export default function VendaPublica() {
   }, [])
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
+
   const limite = parseInt(config.limite_por_compra) || 4
-  const preco = form.tipo === 'meia' ? parseFloat(config.valor_meia) || 0 : parseFloat(config.valor_inteira) || 0
-  const total = preco * (parseInt(form.quantidade) || 1)
+  const precoInteira = parseFloat(config.valor_inteira) || 0
+  const precoMeia = parseFloat(config.valor_meia) || 0
+  const totalQtd = form.quantidade_inteira + form.quantidade_meia
+  const total = (form.quantidade_inteira * precoInteira) + (form.quantidade_meia * precoMeia)
 
   const submit = async (e) => {
     e.preventDefault()
+    if (totalQtd === 0) { setErro('Selecione pelo menos 1 ingresso'); return }
     setErro('')
     setEnviando(true)
     try {
@@ -49,6 +86,15 @@ export default function VendaPublica() {
     setCopiado(true)
     setTimeout(() => setCopiado(false), 2500)
   }
+
+  const descVenda = (() => {
+    if (!resultado) return ''
+    const v = resultado.venda
+    const partes = []
+    if (v.quantidade_inteira > 0) partes.push(`${v.quantidade_inteira}x inteira`)
+    if (v.quantidade_meia > 0) partes.push(`${v.quantidade_meia}x meia`)
+    return partes.length ? partes.join(' + ') : `${v.quantidade}x ${v.tipo}`
+  })()
 
   if (loadingConfig) {
     return (
@@ -93,53 +139,44 @@ export default function VendaPublica() {
                     required
                   />
                 </div>
+
                 <div>
-                  <label className="label">Tipo de ingresso</label>
-                  <div className="flex gap-2">
-                    {[
-                      { value: 'inteira', label: 'Inteira', preco: parseFloat(config.valor_inteira) || 0 },
-                      { value: 'meia', label: 'Meia-entrada', preco: parseFloat(config.valor_meia) || 0 },
-                    ].map(opt => (
-                      <button
-                        key={opt.value}
-                        type="button"
-                        onClick={() => set('tipo', opt.value)}
-                        className={`flex-1 py-2.5 rounded-xl text-sm font-medium border transition-colors ${
-                          form.tipo === opt.value
-                            ? 'bg-tonha-terra/20 border-tonha-terra text-tonha-darkterra'
-                            : 'border-tonha-sand text-tonha-brown/60'
-                        }`}
-                      >
-                        <span className="block">{opt.label}</span>
-                        {opt.preco > 0 && (
-                          <span className="block text-xs mt-0.5 opacity-80">{formatBRL(opt.preco)}</span>
-                        )}
-                      </button>
-                    ))}
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="label mb-0">Ingressos</label>
+                    <span className="text-xs text-tonha-brown/40">máx. {limite} por pedido</span>
+                  </div>
+                  <div className="space-y-2">
+                    <Stepper
+                      label="Inteira"
+                      preco={precoInteira}
+                      value={form.quantidade_inteira}
+                      onInc={() => set('quantidade_inteira', form.quantidade_inteira + 1)}
+                      onDec={() => set('quantidade_inteira', Math.max(0, form.quantidade_inteira - 1))}
+                      maxReached={totalQtd >= limite}
+                    />
+                    <Stepper
+                      label="Meia-entrada"
+                      preco={precoMeia}
+                      value={form.quantidade_meia}
+                      onInc={() => set('quantidade_meia', form.quantidade_meia + 1)}
+                      onDec={() => set('quantidade_meia', Math.max(0, form.quantidade_meia - 1))}
+                      maxReached={totalQtd >= limite}
+                    />
                   </div>
                 </div>
-                <div>
-                  <label className="label">Quantidade (máx. {limite})</label>
-                  <input
-                    className="input"
-                    type="number"
-                    min="1"
-                    max={limite}
-                    value={form.quantidade}
-                    onChange={e => set('quantidade', Math.min(parseInt(e.target.value) || 1, limite))}
-                    required
-                  />
-                </div>
+
                 {total > 0 && (
                   <div className="bg-tonha-amber/20 rounded-xl px-4 py-3 text-center">
                     <p className="text-xs text-tonha-brown/60">Total a pagar via PIX</p>
                     <p className="text-2xl font-bold text-tonha-brown">{formatBRL(total)}</p>
+                    <p className="text-xs text-tonha-brown/40 mt-0.5">{totalQtd} ingresso{totalQtd > 1 ? 's' : ''}</p>
                   </div>
                 )}
+
                 {erro && (
                   <p className="text-red-500 text-sm text-center bg-red-50 rounded-xl py-2 px-3">{erro}</p>
                 )}
-                <button type="submit" disabled={enviando} className="btn-primary w-full">
+                <button type="submit" disabled={enviando || totalQtd === 0} className="btn-primary w-full disabled:opacity-50">
                   {enviando ? 'Gerando PIX...' : 'Gerar QR Code PIX'}
                 </button>
               </form>
@@ -150,9 +187,7 @@ export default function VendaPublica() {
                 <p className="text-4xl">✅</p>
                 <h2 className="font-semibold text-tonha-brown mt-2">Pedido registrado!</h2>
                 <p className="text-sm text-tonha-brown/60 mt-1">
-                  {resultado.venda.quantidade}x ingresso {resultado.venda.tipo}
-                  {' · '}
-                  <strong>{formatBRL(resultado.venda.valor_total)}</strong>
+                  {descVenda} · <strong>{formatBRL(resultado.venda.valor_total)}</strong>
                 </p>
               </div>
               <p className="text-xs text-tonha-brown/50">

@@ -277,7 +277,11 @@ export default function Financeiro() {
       setOrcSummary(os)
     }).finally(() => setLoading(false))
 
-  useEffect(() => { load() }, [])
+  useEffect(() => {
+    load()
+    const id = setInterval(load, 20000)
+    return () => clearInterval(id)
+  }, [])
 
   // Transações reais
   const handleSaveTransaction = async (data) => {

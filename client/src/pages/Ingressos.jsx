@@ -131,7 +131,11 @@ function VendasOnline() {
   const [showConfig, setShowConfig] = useState(false)
 
   const load = () => api.getVendas().then(v => setVendas(v)).finally(() => setLoading(false))
-  useEffect(() => { load() }, [])
+  useEffect(() => {
+    load()
+    const id = setInterval(load, 20000)
+    return () => clearInterval(id)
+  }, [])
 
   const confirmar = async (id) => {
     if (!confirm('Confirmar pagamento desta venda?')) return
@@ -215,7 +219,12 @@ function VendasOnline() {
                   <p className="text-sm font-medium text-tonha-brown truncate">{v.nome}</p>
                   <p className="text-xs text-tonha-brown/50 truncate">{v.email}</p>
                   <p className="text-xs text-tonha-brown/60">
-                    {v.quantidade}x {v.tipo} · <strong>{formatBRL(v.valor_total || 0)}</strong>
+                    {(() => {
+                      const partes = []
+                      if (v.quantidade_inteira > 0) partes.push(`${v.quantidade_inteira}x inteira`)
+                      if (v.quantidade_meia > 0) partes.push(`${v.quantidade_meia}x meia`)
+                      return partes.length ? partes.join(' + ') : `${v.quantidade}x ${v.tipo}`
+                    })()} · <strong>{formatBRL(v.valor_total || 0)}</strong>
                   </p>
                   <p className="text-xs text-tonha-brown/40">{formatDate(v.created_at?.slice(0, 10))}</p>
                 </div>
@@ -251,7 +260,11 @@ export default function Ingressos() {
     .then(([t, s]) => { setTickets(t); setSummary(s) })
     .finally(() => setLoading(false))
 
-  useEffect(() => { load() }, [])
+  useEffect(() => {
+    load()
+    const id = setInterval(load, 20000)
+    return () => clearInterval(id)
+  }, [])
 
   const handleSave = async (data) => {
     await api.createTicket(data)

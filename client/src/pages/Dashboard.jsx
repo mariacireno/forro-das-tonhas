@@ -13,17 +13,21 @@ export default function Dashboard() {
   const [ticketSummary, setTicketSummary] = useState(null)
   const [loading, setLoading] = useState(true)
 
+  const load = () => Promise.all([
+    api.getTasks(),
+    api.getFinancialSummary(),
+    api.getTicketSummary(),
+  ]).then(([t, s, ts]) => {
+    setTasks(t)
+    setSummary(s)
+    setTicketSummary(ts)
+    setLoading(false)
+  })
+
   useEffect(() => {
-    Promise.all([
-      api.getTasks(),
-      api.getFinancialSummary(),
-      api.getTicketSummary(),
-    ]).then(([t, s, ts]) => {
-      setTasks(t)
-      setSummary(s)
-      setTicketSummary(ts)
-      setLoading(false)
-    })
+    load()
+    const id = setInterval(load, 20000)
+    return () => clearInterval(id)
   }, [])
 
   const diasRestantes = daysUntil(EVENT_DATE)

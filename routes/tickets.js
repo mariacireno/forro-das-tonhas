@@ -54,34 +54,35 @@ router.get('/vendas', (req, res) => {
 })
 
 router.post('/venda', (req, res) => {
-  const { nome, email, tipo, quantidade } = req.body
+  const { nome, email, quantidade_inteira, quantidade_meia } = req.body
   if (!nome || !email) return res.status(400).json({ error: 'Nome e email são obrigatórios' })
 
-  const qty = parseInt(quantidade) || 1
-  const limite = parseInt(getConf('limite_por_compra')) || 4
-  if (qty > limite) return res.status(400).json({ error: `Máximo de ${limite} ingressos por compra` })
+  const qtyInteira = parseInt(quantidade_inteira) || 0
+  const qtyMeia = parseInt(quantidade_meia) || 0
+  const qtyTotal = qtyInteira + qtyMeia
 
-  const tipoNorm = tipo === 'meia' ? 'meia' : 'inteira'
-  const precoStr = tipoNorm === 'meia' ? getConf('valor_meia') : getConf('valor_inteira')
-  const valorUnitario = parseFloat(precoStr) || 0
-  const valorTotal = valorUnitario * qty
+  if (qtyTotal === 0) return res.status(400).json({ error: 'Selecione pelo menos 1 ingresso' })
+
+  const limite = parseInt(getConf('limite_por_compra')) || 4
+  if (qtyTotal > limite) return res.status(400).json({ error: `Máximo de ${limite} ingressos por compra` })
+
+  const precoInteira = parseFloat(getConf('valor_inteira')) || 0
+  const precoMeia = parseFloat(getConf('valor_meia')) || 0
+  const valorTotal = (qtyInteira * precoInteira) + (qtyMeia * precoMeia)
 
   const pixChave = getConf('pix_chave')
   if (!pixChave) return res.status(400).json({ error: 'Chave PIX não configurada. Contate o organizador.' })
 
-  const pixNome = getConf('pix_nome') || 'Forro das Tonhas'
-  const pixCidade = getConf('pix_cidade') || 'Brasil'
-
   const id = uuidv4()
   db.prepare(`
-    INSERT INTO ticket_vendas (id, nome, email, tipo, quantidade, valor_unitario, valor_total, status)
-    VALUES (?, ?, ?, ?, ?, ?, ?, 'pendente')
-  `).run(id, nome, email, tipoNorm, qty, valorUnitario, valorTotal)
+    INSERT INTO ticket_vendas (id, nome, email, tipo, quantidade, quantidade_inteira, quantidade_meia, valor_total, status)
+    VALUES (?, ?, ?, 'misto', ?, ?, ?, ?, 'pendente')
+  `).run(id, nome, email, qtyTotal, qtyInteira, qtyMeia, valorTotal)
 
   const pixString = buildPixPayload({
     chave: pixChave,
-    nome: pixNome,
-    cidade: pixCidade,
+    nome: getConf('pix_nome') || 'Forro das Tonhas',
+    cidade: getConf('pix_cidade') || 'Brasil',
     valor: valorTotal,
     txid: id.replace(/-/g, '').slice(0, 25),
   })
@@ -96,8 +97,13 @@ router.patch('/vendas/:id/confirmar', (req, res) => {
 
   db.prepare("UPDATE ticket_vendas SET status = 'pago' WHERE id = ?").run(req.params.id)
 
+  const partes = []
+  if (venda.quantidade_inteira > 0) partes.push(`${venda.quantidade_inteira}x inteira`)
+  if (venda.quantidade_meia > 0) partes.push(`${venda.quantidade_meia}x meia`)
+  const descIngresso = (partes.length ? partes.join(' + ') : `${venda.quantidade}x ${venda.tipo}`) + ` - ${venda.nome}`
+
   db.prepare("INSERT INTO transactions (id, tipo, categoria, valor, descricao, data) VALUES (?, 'receita', 'ingressos', ?, ?, datetime('now'))")
-    .run(uuidv4(), venda.valor_total, `${venda.quantidade}x ingresso ${venda.tipo} - ${venda.nome}`)
+    .run(uuidv4(), venda.valor_total, descIngresso)
 
   res.json(db.prepare('SELECT * FROM ticket_vendas WHERE id = ?').get(req.params.id))
 })
