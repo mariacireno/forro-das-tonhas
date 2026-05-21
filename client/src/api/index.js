@@ -1,8 +1,9 @@
 const BASE = '/api'
 
 async function req(path, options = {}) {
+  const pwd = sessionStorage.getItem('adminPwd') || ''
   const res = await fetch(`${BASE}${path}`, {
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', 'x-admin-password': pwd },
     ...options,
   })
   if (!res.ok) {

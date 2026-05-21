@@ -48,9 +48,9 @@ export default function Sidebar() {
       <div className="px-4 py-4 border-t border-tonha-sand">
         <p className="text-xs text-tonha-brown/50 mb-2 uppercase tracking-wide">Organizadoras</p>
         {[
-          { name: 'Renata',   pct: '50%', color: 'bg-tonha-terra' },
-          { name: 'Maria',    pct: '25%', color: 'bg-tonha-sky' },
-          { name: 'Catarina', pct: '25%', color: 'bg-tonha-sage' },
+          { name: 'Renata',   pct: '33%', color: 'bg-tonha-terra' },
+          { name: 'Maria',    pct: '33%', color: 'bg-tonha-sky' },
+          { name: 'Catarina', pct: '33%', color: 'bg-tonha-sage' },
         ].map(({ name, pct, color }) => (
           <div key={name} className="flex items-center gap-2 py-1">
             <div className={`w-2 h-2 rounded-full ${color}`} />
