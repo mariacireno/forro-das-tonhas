@@ -11,9 +11,11 @@ const CATEGORIAS_RECEITA = [
 ]
 
 // ─── Formulário compartilhado (transação real e orçamento) ──────────────────
+const SOCIAS = ['Renata', 'Maria', 'Catarina']
+
 function LancamentoForm({ inicial, onSave, onClose }) {
   const [form, setForm] = useState({
-    tipo: 'custo', categoria: 'outros', valor: '', descricao: '', data: '',
+    tipo: 'custo', categoria: 'outros', valor: '', descricao: '', data: '', pago_por: '',
     ...inicial,
   })
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
@@ -64,7 +66,16 @@ function LancamentoForm({ inicial, onSave, onClose }) {
           placeholder="Ex: Toldo — Estruturas Nordeste" />
       </div>
 
-      {/* Data só faz sentido para lançamentos reais */}
+      {form.tipo === 'custo' && (
+        <div>
+          <label className="label">Quem pagou essa despesa?</label>
+          <select className="select" value={form.pago_por || ''} onChange={e => set('pago_por', e.target.value)}>
+            <option value="">Não informado / caixa comum</option>
+            {SOCIAS.map(s => <option key={s} value={s}>{s}</option>)}
+          </select>
+        </div>
+      )}
+
       {inicial?.showData !== false && (
         <div>
           <label className="label">Data</label>
@@ -173,6 +184,7 @@ function ListaItens({ items, onDelete, onEdit, showData }) {
             <p className="text-sm text-tonha-brown truncate">{t.descricao || t.categoria}</p>
             <p className="text-xs text-tonha-brown/50">
               {showData && t.data ? `${formatDate(t.data)} · ` : ''}{t.categoria}
+              {t.pago_por ? ` · pago por ${t.pago_por}` : ''}
             </p>
           </div>
           <p className={`font-semibold text-sm flex-shrink-0 ${t.tipo === 'receita' ? 'text-green-600' : 'text-tonha-darkterra'}`}>
@@ -193,28 +205,49 @@ function ListaItens({ items, onDelete, onEdit, showData }) {
 }
 
 // ─── Distribuição às sócias ──────────────────────────────────────────────────
+const SOCIA_COLORS = {
+  Renata:   'bg-tonha-terra/20 border-tonha-terra/30',
+  Maria:    'bg-tonha-sky/20 border-tonha-sky/30',
+  Catarina: 'bg-tonha-sage/20 border-tonha-sage/30',
+}
+
 function Distribuicao({ distribuido, socias, titulo }) {
   if (!distribuido || distribuido <= 0) return null
+
+  const temReembolso = Object.values(socias).some(s => (s.reimbursement || 0) > 0)
+
   return (
     <div className="card">
       <div className="flex items-center gap-2 mb-4">
         <Users size={16} className="text-tonha-darksky" />
         <h2 className="font-semibold text-tonha-brown">{titulo}</h2>
-        <span className="text-xs text-tonha-brown/50 ml-1">(50% do resultado = {formatBRL(distribuido)})</span>
+        <span className="text-xs text-tonha-brown/50 ml-1">(33% cada · distribuível: {formatBRL(distribuido)})</span>
       </div>
       <div className="grid grid-cols-3 gap-3">
-        {[
-          { name: 'Renata',   pct: '50%', color: 'bg-tonha-terra/20 border-tonha-terra/30' },
-          { name: 'Maria',    pct: '25%', color: 'bg-tonha-sky/20 border-tonha-sky/30' },
-          { name: 'Catarina', pct: '25%', color: 'bg-tonha-sage/20 border-tonha-sage/30' },
-        ].map(({ name, pct, color }) => (
-          <div key={name} className={`rounded-xl p-4 border text-center ${color}`}>
-            <p className="font-semibold text-tonha-brown">{name}</p>
-            <p className="text-xs text-tonha-brown/50 mb-1">{pct}</p>
-            <p className="text-lg font-bold text-tonha-brown">{formatBRL(socias[name])}</p>
-          </div>
-        ))}
+        {['Renata', 'Maria', 'Catarina'].map(name => {
+          const dados = socias[name] ?? { share: 0, reimbursement: 0, total: 0 }
+          return (
+            <div key={name} className={`rounded-xl p-3 border text-center ${SOCIA_COLORS[name]}`}>
+              <p className="font-semibold text-tonha-brown text-sm">{name}</p>
+              <p className="text-xs text-tonha-brown/40 mb-1">33%</p>
+              <p className="text-base font-bold text-tonha-brown">{formatBRL(dados.share)}</p>
+              {temReembolso && (
+                <div className="mt-2 pt-2 border-t border-black/10 text-xs text-tonha-brown/60 space-y-0.5">
+                  {dados.reimbursement > 0 && (
+                    <p className="text-green-700">+{formatBRL(dados.reimbursement)} despesas</p>
+                  )}
+                  <p className="font-semibold text-tonha-brown text-sm">{formatBRL(dados.total)}</p>
+                </div>
+              )}
+            </div>
+          )
+        })}
       </div>
+      {temReembolso && (
+        <p className="text-xs text-tonha-brown/40 mt-3 text-center">
+          Total inclui 33% do lucro distribuível + reembolso das despesas pagas do bolso
+        </p>
+      )}
     </div>
   )
 }

@@ -51,9 +51,9 @@ router.get('/summary', (req, res) => {
     reinvestimento_previsto: reinvestimento,
     distribuido_previsto: distribuido,
     socias_previsto: {
-      Renata: distribuido * 0.5,
-      Maria: distribuido * 0.25,
-      Catarina: distribuido * 0.25,
+      Renata:   { share: distribuido / 3, reimbursement: 0, total: distribuido / 3 },
+      Maria:    { share: distribuido / 3, reimbursement: 0, total: distribuido / 3 },
+      Catarina: { share: distribuido / 3, reimbursement: 0, total: distribuido / 3 },
     },
   });
 });
