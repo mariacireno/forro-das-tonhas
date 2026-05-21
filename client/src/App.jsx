@@ -5,28 +5,33 @@ import Dashboard from './pages/Dashboard'
 import Tarefas from './pages/Tarefas'
 import Financeiro from './pages/Financeiro'
 import Ingressos from './pages/Ingressos'
+import VendaPublica from './pages/VendaPublica'
 
 export default function App() {
   return (
     <BrowserRouter>
-      <div className="flex min-h-screen bg-tonha-cream">
-        {/* Sidebar só aparece em telas médias pra cima */}
-        <div className="hidden md:block">
-          <Sidebar />
-        </div>
+      <Routes>
+        {/* Página pública — sem layout admin */}
+        <Route path="/venda" element={<VendaPublica />} />
 
-        <main className="flex-1 p-4 md:p-6 overflow-auto pb-20 md:pb-6">
-          <Routes>
-            <Route path="/" element={<Dashboard />} />
-            <Route path="/tarefas" element={<Tarefas />} />
-            <Route path="/financeiro" element={<Financeiro />} />
-            <Route path="/ingressos" element={<Ingressos />} />
-          </Routes>
-        </main>
-
-        {/* Bottom nav só aparece no mobile */}
-        <BottomNav />
-      </div>
+        {/* Painel admin */}
+        <Route path="/*" element={
+          <div className="flex min-h-screen bg-tonha-cream">
+            <div className="hidden md:block">
+              <Sidebar />
+            </div>
+            <main className="flex-1 p-4 md:p-6 overflow-auto pb-20 md:pb-6">
+              <Routes>
+                <Route path="/" element={<Dashboard />} />
+                <Route path="/tarefas" element={<Tarefas />} />
+                <Route path="/financeiro" element={<Financeiro />} />
+                <Route path="/ingressos" element={<Ingressos />} />
+              </Routes>
+            </main>
+            <BottomNav />
+          </div>
+        } />
+      </Routes>
     </BrowserRouter>
   )
 }

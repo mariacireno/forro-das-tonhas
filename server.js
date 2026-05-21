@@ -14,6 +14,7 @@ app.use('/api/tasks/:taskId/checklist', require('./routes/checklist'));
 app.use('/api/transactions', require('./routes/transactions'));
 app.use('/api/tickets', require('./routes/tickets'));
 app.use('/api/orcamentos', require('./routes/orcamentos'));
+app.use('/api/config', require('./routes/config'));
 
 // Serve o frontend em produção
 if (process.env.NODE_ENV === 'production') {
@@ -25,5 +26,16 @@ if (process.env.NODE_ENV === 'production') {
 
 app.listen(PORT, () => {
   console.log(`Forró das Tonhas rodando na porta ${PORT}`);
-  runSeed();
+  try {
+    runSeed();
+  } catch (err) {
+    console.error('Seed falhou (não crítico):', err.message);
+  }
+});
+
+process.on('uncaughtException', (err) => {
+  console.error('Erro não capturado:', err);
+});
+process.on('unhandledRejection', (reason) => {
+  console.error('Promise rejeitada:', reason);
 });

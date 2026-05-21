@@ -43,4 +43,14 @@ export const api = {
   createChecklistItem: (taskId, data) => req(`/tasks/${taskId}/checklist`, { method: 'POST', body: JSON.stringify(data) }),
   updateChecklistItem: (taskId, itemId, data) => req(`/tasks/${taskId}/checklist/${itemId}`, { method: 'PUT', body: JSON.stringify(data) }),
   deleteChecklistItem: (taskId, itemId) => req(`/tasks/${taskId}/checklist/${itemId}`, { method: 'DELETE' }),
+
+  // Config
+  getConfig: () => req('/config'),
+  updateConfig: (chave, valor) => req('/config', { method: 'PUT', body: JSON.stringify({ chave, valor }) }),
+
+  // Vendas online
+  getVendas: () => req('/tickets/vendas'),
+  createVenda: (data) => req('/tickets/venda', { method: 'POST', body: JSON.stringify(data) }),
+  confirmarVenda: (id) => req(`/tickets/vendas/${id}/confirmar`, { method: 'PATCH' }),
+  deleteVenda: (id) => req(`/tickets/vendas/${id}`, { method: 'DELETE' }),
 }
