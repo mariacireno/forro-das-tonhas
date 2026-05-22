@@ -1,41 +1,22 @@
 import { useEffect, useState } from 'react'
-import { Plus, Trash2, Ticket, Banknote, Settings, ChevronDown, Check, X, UserCheck, Search } from 'lucide-react'
+import { Plus, Trash2, Ticket, Banknote, Settings, ChevronDown, Check, X, Search } from 'lucide-react'
 import { api } from '../api'
 import Modal from '../components/Modal'
 import { formatBRL, formatDate } from '../utils/format'
 
 function TicketForm({ onSave, onClose }) {
-  const [form, setForm] = useState({
-    tipo: 'inteiro', quantidade: '', valor_unitario: '', canal: 'antecipado', data: '',
-  })
+  const [form, setForm] = useState({ quantidade: '', valor_unitario: '', data: '' })
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
   const subtotal = (parseFloat(form.quantidade) || 0) * (parseFloat(form.valor_unitario) || 0)
 
   const submit = (e) => {
     e.preventDefault()
     if (!form.quantidade || !form.valor_unitario) return
-    onSave({ ...form, quantidade: parseInt(form.quantidade), valor_unitario: parseFloat(form.valor_unitario), data: form.data || null })
+    onSave({ tipo: 'portaria', canal: 'portaria', quantidade: parseInt(form.quantidade), valor_unitario: parseFloat(form.valor_unitario), data: form.data || null })
   }
 
   return (
     <form onSubmit={submit} className="space-y-4">
-      <div>
-        <label className="label">Tipo de ingresso</label>
-        <div className="grid grid-cols-3 gap-2">
-          {[
-            { value: 'lote_promo', label: 'Lote Promo' },
-            { value: 'lote2', label: '2º Lote' },
-            { value: 'mesa', label: 'Mesa (4p)' },
-          ].map(({ value, label }) => (
-            <button key={value} type="button" onClick={() => set('tipo', value)}
-              className={`py-2 rounded-xl text-xs font-medium border transition-colors ${
-                form.tipo === value ? 'bg-tonha-terra/20 border-tonha-terra text-tonha-darkterra' : 'border-tonha-sand text-tonha-brown/60'
-              }`}>
-              {label}
-            </button>
-          ))}
-        </div>
-      </div>
       <div className="grid grid-cols-2 gap-3">
         <div>
           <label className="label">Quantidade *</label>
@@ -46,18 +27,9 @@ function TicketForm({ onSave, onClose }) {
           <input type="number" step="0.01" min="0" className="input" value={form.valor_unitario} onChange={e => set('valor_unitario', e.target.value)} placeholder="30,00" required />
         </div>
       </div>
-      <div className="grid grid-cols-2 gap-3">
-        <div>
-          <label className="label">Canal de venda</label>
-          <select className="select" value={form.canal} onChange={e => set('canal', e.target.value)}>
-            <option value="antecipado">Antecipado</option>
-            <option value="portaria">Portaria</option>
-          </select>
-        </div>
-        <div>
-          <label className="label">Data</label>
-          <input type="date" className="input" value={form.data} onChange={e => set('data', e.target.value)} />
-        </div>
+      <div>
+        <label className="label">Data</label>
+        <input type="date" className="input" value={form.data} onChange={e => set('data', e.target.value)} />
       </div>
       {subtotal > 0 && (
         <div className="bg-tonha-amber/20 rounded-xl px-4 py-3 text-center">
@@ -434,10 +406,6 @@ export default function Ingressos() {
     load()
   }
 
-  const inteiro = summary?.porTipo?.find(t => t.tipo === 'inteiro')
-  const meia = summary?.porTipo?.find(t => t.tipo === 'meia')
-  const antecipado = summary?.porCanal?.find(c => c.canal === 'antecipado')
-  const portaria = summary?.porCanal?.find(c => c.canal === 'portaria')
 
   return (
     <div className="space-y-5">
@@ -471,7 +439,7 @@ export default function Ingressos() {
             <div className="text-tonha-brown/50 py-6 text-center">Carregando...</div>
           ) : (
             <>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="grid grid-cols-2 gap-3">
                 <div className="card text-center">
                   <Ticket size={22} className="text-tonha-terra mx-auto mb-2" />
                   <p className="text-xs text-tonha-brown/60">Total vendidos</p>
@@ -483,32 +451,6 @@ export default function Ingressos() {
                   <p className="text-xs text-tonha-brown/60">Total arrecadado</p>
                   <p className="text-2xl font-bold text-amber-700">{formatBRL(summary?.receita)}</p>
                 </div>
-                <div className="card">
-                  <p className="text-xs text-tonha-brown/60 mb-3">Por tipo</p>
-                  <div className="space-y-2">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-tonha-brown/70">Inteiro</span>
-                      <span className="font-medium text-tonha-brown">{inteiro?.qty ?? 0} · {formatBRL(inteiro?.receita ?? 0)}</span>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-tonha-brown/70">Meia</span>
-                      <span className="font-medium text-tonha-brown">{meia?.qty ?? 0} · {formatBRL(meia?.receita ?? 0)}</span>
-                    </div>
-                  </div>
-                  <div className="mt-3 pt-3 border-t border-tonha-sand">
-                    <p className="text-xs text-tonha-brown/60 mb-2">Por canal</p>
-                    <div className="space-y-1">
-                      <div className="flex justify-between text-sm">
-                        <span className="text-tonha-brown/70">Antecipado</span>
-                        <span className="font-medium text-tonha-brown">{antecipado?.qty ?? 0}</span>
-                      </div>
-                      <div className="flex justify-between text-sm">
-                        <span className="text-tonha-brown/70">Portaria</span>
-                        <span className="font-medium text-tonha-brown">{portaria?.qty ?? 0}</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
               </div>
 
               <div className="card">
@@ -519,12 +461,9 @@ export default function Ingressos() {
                   <ul className="divide-y divide-tonha-sand">
                     {tickets.map(t => (
                       <li key={t.id} className="flex items-center gap-3 py-3">
-                        <div className={`badge ${t.tipo === 'inteiro' ? 'bg-tonha-terra/20 text-tonha-darkterra' : 'bg-tonha-sky/30 text-tonha-darksky'}`}>
-                          {t.tipo}
-                        </div>
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm text-tonha-brown">{t.quantidade}x {formatBRL(t.valor_unitario)}</p>
-                          <p className="text-xs text-tonha-brown/50">{t.canal} · {formatDate(t.data)}</p>
+                          <p className="text-sm font-medium text-tonha-brown">{t.quantidade}x ingresso · {formatBRL(t.valor_unitario)} cada</p>
+                          <p className="text-xs text-tonha-brown/50">{formatDate(t.data)}</p>
                         </div>
                         <p className="font-semibold text-green-600 text-sm">{formatBRL(t.quantidade * t.valor_unitario)}</p>
                         <button onClick={() => handleDelete(t.id)} className="text-tonha-brown/30 hover:text-red-400 transition-colors p-1">
