@@ -291,9 +291,8 @@ function CheckIn() {
     return partes.length ? partes.join(' + ') : `${v.quantidade}x ${v.tipo}`
   }
 
-  const totalPessoas = vendas.reduce((s, v) => s + (v.quantidade || 1), 0)
   const chegaram = vendas.filter(v => v.check_in)
-  const chegouPessoas = chegaram.reduce((s, v) => s + (v.quantidade || 1), 0)
+  const pendentes = vendas.filter(v => !v.check_in)
 
   const filtradas = busca
     ? vendas.filter(v => v.nome.toLowerCase().includes(busca.toLowerCase()) || v.email.toLowerCase().includes(busca.toLowerCase()))
@@ -305,16 +304,16 @@ function CheckIn() {
     <div className="space-y-4">
       <div className="grid grid-cols-3 gap-3">
         <div className="card text-center py-3">
-          <p className="text-2xl font-bold text-green-600">{chegouPessoas}</p>
+          <p className="text-2xl font-bold text-green-600">{chegaram.length}</p>
           <p className="text-xs text-tonha-brown/50">entraram</p>
         </div>
         <div className="card text-center py-3">
-          <p className="text-2xl font-bold text-tonha-brown">{totalPessoas}</p>
-          <p className="text-xs text-tonha-brown/50">aguardados</p>
+          <p className="text-2xl font-bold text-tonha-terra">{pendentes.length}</p>
+          <p className="text-xs text-tonha-brown/50">pendentes</p>
         </div>
         <div className="card text-center py-3">
-          <p className="text-2xl font-bold text-tonha-terra">{vendas.length - chegaram.length}</p>
-          <p className="text-xs text-tonha-brown/50">pendentes</p>
+          <p className="text-2xl font-bold text-tonha-brown">{vendas.length}</p>
+          <p className="text-xs text-tonha-brown/50">total</p>
         </div>
       </div>
 
