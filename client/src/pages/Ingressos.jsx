@@ -141,6 +141,13 @@ function VendasOnline() {
     load()
   }
 
+  const resetarTeste = async () => {
+    if (!confirm('⚠️ Isso vai apagar TODAS as vendas (incluindo confirmadas) e seus check-ins. Usar apenas para limpar dados de teste. Confirmar?')) return
+    if (!confirm('Tem certeza? Esta ação não pode ser desfeita.')) return
+    await fetch('/api/admin/reset-vendas', { method: 'DELETE', headers: { 'x-admin-password': sessionStorage.getItem('adminPwd') || '' } })
+    load()
+  }
+
   const pendentes = vendas.filter(v => v.status === 'pendente')
   const pagas = vendas.filter(v => v.status === 'pago')
   const totalConfirmado = pagas.reduce((s, v) => s + (v.valor_total || 0), 0)
@@ -244,6 +251,12 @@ function VendasOnline() {
           </ul>
         )}
       </div>
+
+      {vendas.length > 0 && (
+        <button onClick={resetarTeste} className="w-full text-xs text-tonha-brown/30 hover:text-red-400 transition-colors py-2">
+          Limpar dados de teste
+        </button>
+      )}
     </div>
   )
 }
