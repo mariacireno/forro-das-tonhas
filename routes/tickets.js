@@ -68,6 +68,23 @@ router.post('/venda', (req, res) => {
   const limite = parseInt(getConf('limite_por_compra')) || 4
   if (qtyTotal > limite) return res.status(400).json({ error: `Máximo de ${limite} por compra` })
 
+  // Valida estoque (0 = ilimitado)
+  const vendidos = db.prepare(`
+    SELECT COALESCE(SUM(quantidade_lote_promo),0) AS promo,
+           COALESCE(SUM(quantidade_lote2),0)      AS lote2,
+           COALESCE(SUM(quantidade_mesa),0)       AS mesa
+    FROM ticket_vendas WHERE status = 'pago'
+  `).get()
+  const estoquePromo = parseInt(getConf('estoque_lote_promo')) || 0
+  const estoqueLote2 = parseInt(getConf('estoque_lote2'))      || 0
+  const estoqueMesa  = parseInt(getConf('estoque_mesa'))       || 0
+  if (estoquePromo > 0 && vendidos.promo + qtyLotePromo > estoquePromo)
+    return res.status(400).json({ error: 'Lote Promocional esgotado' })
+  if (estoqueLote2 > 0 && vendidos.lote2 + qtyLote2 > estoqueLote2)
+    return res.status(400).json({ error: '2º Lote esgotado' })
+  if (estoqueMesa > 0 && vendidos.mesa + qtyMesa > estoqueMesa)
+    return res.status(400).json({ error: 'Mesas esgotadas' })
+
   const precoLotePromo = parseFloat(getConf('valor_lote_promo')) || 0
   const precoLote2 = parseFloat(getConf('valor_lote2')) || 0
   const precoMesa = parseFloat(getConf('valor_mesa')) || 0

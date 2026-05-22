@@ -50,11 +50,11 @@ function StepProgress({ step }) {
   )
 }
 
-function TicketRow({ id, name, price, unit, badge, qty, onChange, maxReached }) {
-  const active = qty > 0
+function TicketRow({ id, name, price, unit, badge, qty, onChange, maxReached, esgotado }) {
+  const active = qty > 0 && !esgotado
   const color = id === 'mesa' ? 'var(--red)' : id === 'lote2' ? 'var(--indigo)' : 'var(--green)'
   const icon = id === 'mesa' ? '🪑' : '🎟'
-  const canInc = !maxReached
+  const canInc = !maxReached && !esgotado
 
   return (
     <div style={{
@@ -78,8 +78,16 @@ function TicketRow({ id, name, price, unit, badge, qty, onChange, maxReached }) 
       {/* Info */}
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
-          <span style={{ ...D.displayCond, fontSize: 16, color: 'var(--ink)' }}>{name}</span>
-          {badge && (
+          <span style={{ ...D.displayCond, fontSize: 16, color: esgotado ? 'var(--ink-soft)' : 'var(--ink)' }}>{name}</span>
+          {esgotado ? (
+            <span style={{
+              ...D.displayCond, fontSize: 10,
+              background: 'var(--ink-soft)', color: 'var(--cream-warm)',
+              padding: '2px 6px', borderRadius: 999, letterSpacing: '0.08em',
+            }}>
+              ESGOTADO
+            </span>
+          ) : badge && (
             <span style={{
               ...D.displayCond, fontSize: 10,
               background: 'var(--red)', color: 'var(--cream-warm)',
@@ -223,6 +231,12 @@ function StepTickets({ config, qty, setQty, onAdvance }) {
     })
   }
 
+  const esgotado = {
+    promo: config.disponivel_lote_promo === '0',
+    lote2: config.disponivel_lote2 === '0',
+    mesa:  config.disponivel_mesa === '0',
+  }
+
   const TICKETS = [
     { id: 'promo', name: 'Lote Promocional', price: precos.promo, unit: '/ unid.', badge: null },
     { id: 'lote2', name: '2º Lote',          price: precos.lote2, unit: '/ unid.', badge: null },
@@ -230,7 +244,7 @@ function StepTickets({ config, qty, setQty, onAdvance }) {
   ]
 
   const ticketRows = TICKETS.map(t => (
-    <TicketRow key={t.id} {...t} qty={qty[t.id] || 0} onChange={(d) => update(t.id, d)} maxReached={totalQtd >= limite} />
+    <TicketRow key={t.id} {...t} qty={qty[t.id] || 0} onChange={(d) => update(t.id, d)} maxReached={totalQtd >= limite} esgotado={esgotado[t.id]} />
   ))
 
   /* ── DESKTOP ── */

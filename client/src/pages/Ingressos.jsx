@@ -74,7 +74,7 @@ function TicketForm({ onSave, onClose }) {
 }
 
 function ConfigPix() {
-  const [conf, setConf] = useState({ pix_chave: '', pix_nome: '', pix_cidade: '', valor_lote_promo: '', valor_lote2: '', valor_mesa: '', limite_por_compra: '4' })
+  const [conf, setConf] = useState({ pix_chave: '', pix_nome: '', pix_cidade: '', valor_lote_promo: '', valor_lote2: '', valor_mesa: '', limite_por_compra: '4', estoque_lote_promo: '0', estoque_lote2: '0', estoque_mesa: '0' })
   const [loading, setLoading] = useState(true)
   const [salvando, setSalvando] = useState(false)
   const [salvo, setSalvo] = useState(false)
@@ -124,6 +124,18 @@ function ConfigPix() {
         <div>
           <label className="label">Máx. por compra</label>
           <input className="input" type="number" min="1" max="20" value={conf.limite_por_compra} onChange={e => set('limite_por_compra', e.target.value)} placeholder="4" />
+        </div>
+        <div>
+          <label className="label">Estoque Lote Promo (0 = ilimitado)</label>
+          <input className="input" type="number" min="0" value={conf.estoque_lote_promo} onChange={e => set('estoque_lote_promo', e.target.value)} placeholder="0" />
+        </div>
+        <div>
+          <label className="label">Estoque 2º Lote (0 = ilimitado)</label>
+          <input className="input" type="number" min="0" value={conf.estoque_lote2} onChange={e => set('estoque_lote2', e.target.value)} placeholder="0" />
+        </div>
+        <div>
+          <label className="label">Estoque Mesas (0 = ilimitado)</label>
+          <input className="input" type="number" min="0" value={conf.estoque_mesa} onChange={e => set('estoque_mesa', e.target.value)} placeholder="0" />
         </div>
       </div>
       <button onClick={salvar} disabled={salvando} className="btn-primary">
