@@ -615,13 +615,36 @@ function StepDados({ qty, config, form, setForm, enviando, erro, onBack, onSubmi
 
 /* ── Step 3: PIX QR Code ── */
 
-function StepPix({ resultado, copiado, onCopiar, onBack }) {
+function StepPix({ resultado, copiado, onCopiar, avisoEnviado, setAvisoEnviado, confirmado, onBack }) {
   const v = resultado.venda
   const partes = []
   if (v.quantidade_lote_promo > 0) partes.push(`${v.quantidade_lote_promo}× Lote Promo`)
   if (v.quantidade_lote2 > 0)      partes.push(`${v.quantidade_lote2}× 2º Lote`)
   if (v.quantidade_mesa > 0)       partes.push(`${v.quantidade_mesa}× Mesa`)
   const desc = partes.join(' + ')
+
+  if (confirmado) {
+    return (
+      <div style={{ minHeight: '100dvh', background: 'var(--green)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '32px 24px', textAlign: 'center' }} className="paper-bg">
+        <div style={{ fontSize: 72, lineHeight: 1 }}>🎉</div>
+        <div style={{ ...D.display, fontSize: 56, color: 'var(--cream-warm)', WebkitTextStroke: '2px var(--ink)', paintOrder: 'stroke fill', marginTop: 12, lineHeight: 0.9 }}>
+          PAGAMENTO<br />CONFIRMADO!
+        </div>
+        <div style={{ marginTop: 20, ...D.body, fontSize: 15, color: 'var(--ink)', maxWidth: 320, lineHeight: 1.6 }}>
+          Seu ingresso está a caminho!<br />
+          Verifique o e-mail <strong>{v.email}</strong> para o comprovante.
+        </div>
+        <div style={{ marginTop: 24, background: 'var(--ink)', color: 'var(--cream-warm)', borderRadius: 18, padding: '16px 24px', maxWidth: 300, width: '100%' }}>
+          <div style={{ ...D.displayCond, fontSize: 12, letterSpacing: '0.18em', opacity: 0.6, marginBottom: 4 }}>NOS VEMOS LÁ!</div>
+          <div style={{ ...D.displayCond, fontSize: 22 }}>13 JUN 2026</div>
+          <div style={{ ...D.body, fontSize: 13, opacity: 0.75, marginTop: 4 }}>16h · Olinda, PE</div>
+        </div>
+        <div style={{ marginTop: 20, ...D.displayCond, fontSize: 13, color: 'var(--ink)', letterSpacing: '0.1em', opacity: 0.8 }}>
+          {desc} · {formatBRL(v.valor_total)}
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div style={{ minHeight: '100dvh', background: 'var(--cream)' }} className="paper-bg">
@@ -678,6 +701,38 @@ function StepPix({ resultado, copiado, onCopiar, onBack }) {
           >
             {copiado ? '✓ Código copiado!' : '📋 Copiar código PIX'}
           </button>
+
+          {!avisoEnviado ? (
+            <button
+              type="button"
+              onClick={() => setAvisoEnviado(true)}
+              style={{
+                marginTop: 10,
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                ...D.displayCond, fontSize: 16, letterSpacing: '0.04em',
+                background: 'var(--yellow)', color: 'var(--ink)',
+                border: '2.5px solid var(--ink)', borderRadius: 999, padding: '14px 18px',
+                cursor: 'pointer', width: '100%',
+                boxShadow: '0 3px 0 0 var(--ink)',
+              }}
+            >
+              ✅ Já fiz o PIX!
+            </button>
+          ) : (
+            <div style={{
+              marginTop: 14,
+              background: 'rgba(30,168,74,0.08)', border: '2px solid var(--green)',
+              borderRadius: 16, padding: '14px 16px', textAlign: 'center',
+            }}>
+              <div style={{ fontSize: 28 }}>⏳</div>
+              <div style={{ ...D.displayCond, fontSize: 17, color: 'var(--green-deep)', marginTop: 6, letterSpacing: '0.06em' }}>
+                AGUARDANDO CONFIRMAÇÃO
+              </div>
+              <div style={{ ...D.body, fontSize: 13, color: 'var(--ink-soft)', marginTop: 8, lineHeight: 1.6 }}>
+                Estamos verificando seu pagamento. Assim que confirmado, esta tela atualiza automaticamente e você recebe o e-mail.
+              </div>
+            </div>
+          )}
         </div>
 
         <div style={{ marginTop: 14, ...D.body, fontSize: 12, color: 'var(--ink-soft)', textAlign: 'center', lineHeight: 1.6 }}>
@@ -702,6 +757,8 @@ export default function VendaPublica() {
   const [enviando, setEnviando] = useState(false)
   const [erro, setErro] = useState('')
   const [copiado, setCopiado] = useState(false)
+  const [avisoEnviado, setAvisoEnviado] = useState(false)
+  const [confirmado, setConfirmado] = useState(false)
 
   useEffect(() => {
     fetch('/api/config')
@@ -709,6 +766,21 @@ export default function VendaPublica() {
       .then(c => { setConfig(c); setLoadingConfig(false) })
       .catch(() => setLoadingConfig(false))
   }, [])
+
+  useEffect(() => {
+    if (step !== 3 || !resultado || confirmado) return
+    const poll = async () => {
+      try {
+        const res = await fetch(`/api/tickets/vendas/${resultado.venda.id}`)
+        if (!res.ok) return
+        const data = await res.json()
+        if (data.status === 'pago') setConfirmado(true)
+      } catch (_) {}
+    }
+    poll()
+    const id = setInterval(poll, 15000)
+    return () => clearInterval(id)
+  }, [step, resultado, confirmado])
 
   const submit = async () => {
     setErro('')
@@ -771,6 +843,9 @@ export default function VendaPublica() {
       resultado={resultado}
       copiado={copiado}
       onCopiar={copiar}
+      avisoEnviado={avisoEnviado}
+      setAvisoEnviado={setAvisoEnviado}
+      confirmado={confirmado}
       onBack={() => setStep(2)}
     />
   )

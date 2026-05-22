@@ -16,6 +16,7 @@ app.use((req, res, next) => {
   // Rotas públicas (página de venda)
   if (req.method === 'GET' && req.originalUrl.startsWith('/api/config')) return next()
   if (req.method === 'POST' && req.originalUrl === '/api/tickets/venda') return next()
+  if (req.method === 'GET' && /^\/api\/tickets\/vendas\/[^/]+$/.test(req.originalUrl)) return next()
   if (req.headers['x-admin-password'] !== ADMIN_PASSWORD) {
     return res.status(401).json({ error: 'Não autorizado' })
   }

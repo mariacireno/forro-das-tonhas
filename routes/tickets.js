@@ -54,6 +54,12 @@ router.get('/vendas', (req, res) => {
   res.json(db.prepare('SELECT * FROM ticket_vendas ORDER BY created_at DESC').all())
 })
 
+router.get('/vendas/:id', (req, res) => {
+  const venda = db.prepare('SELECT id, nome, email, status, valor_total, quantidade_lote_promo, quantidade_lote2, quantidade_mesa FROM ticket_vendas WHERE id = ?').get(req.params.id)
+  if (!venda) return res.status(404).json({ error: 'Venda não encontrada' })
+  res.json(venda)
+})
+
 router.post('/venda', (req, res) => {
   const { nome, email, cpf, telefone, quantidade_lote_promo, quantidade_lote2, quantidade_mesa } = req.body
   if (!nome || !email) return res.status(400).json({ error: 'Nome e email são obrigatórios' })
