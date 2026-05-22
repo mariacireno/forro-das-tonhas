@@ -4,7 +4,14 @@ const { v4: uuidv4 } = require('uuid');
 const db = require('../database');
 
 router.get('/', (req, res) => {
-  const tasks = db.prepare('SELECT * FROM tasks ORDER BY urgente DESC, prazo ASC, created_at DESC').all();
+  const tasks = db.prepare(`
+    SELECT * FROM tasks
+    ORDER BY
+      CASE status WHEN 'em_andamento' THEN 0 WHEN 'pendente' THEN 1 WHEN 'concluida' THEN 2 ELSE 3 END,
+      urgente DESC,
+      prazo ASC,
+      created_at DESC
+  `).all();
   res.json(tasks);
 });
 
