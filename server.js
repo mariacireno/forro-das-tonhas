@@ -28,6 +28,7 @@ app.use('/api/transactions', require('./routes/transactions'));
 app.use('/api/tickets', require('./routes/tickets'));
 app.use('/api/orcamentos', require('./routes/orcamentos'));
 app.use('/api/config', require('./routes/config'));
+app.use('/api/admin', require('./routes/admin'));
 
 // Serve o frontend em produção
 if (process.env.NODE_ENV === 'production') {

@@ -298,6 +298,36 @@ function CheckIn() {
     ? vendas.filter(v => v.nome.toLowerCase().includes(busca.toLowerCase()) || v.email.toLowerCase().includes(busca.toLowerCase()))
     : vendas
 
+  const imprimirLista = () => {
+    const rows = vendas.map((v, i) => `
+      <tr style="background:${v.check_in ? '#f0fdf4' : '#fff'}">
+        <td>${i + 1}</td>
+        <td><strong>${v.nome}</strong><br><span style="font-size:11px;color:#888">${v.email}</span></td>
+        <td>${qtdDesc(v)}</td>
+        <td style="text-align:center">${v.check_in ? `✓ ${v.check_in_at ? new Date(v.check_in_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : ''}` : ''}</td>
+      </tr>`).join('')
+
+    const html = `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8">
+      <title>Lista de Presença — Forró das Tonhas</title>
+      <style>
+        body{font-family:sans-serif;padding:24px;color:#222}
+        h1{font-size:18px;margin:0}p{font-size:13px;color:#666;margin:4px 0 16px}
+        table{width:100%;border-collapse:collapse;font-size:13px}
+        th,td{border:1px solid #ddd;padding:7px 10px;text-align:left;vertical-align:top}
+        th{background:#f5f5f5;font-weight:600}
+      </style></head><body>
+      <h1>Forró das Tonhas — Lista de Presença</h1>
+      <p>Gerada em ${new Date().toLocaleString('pt-BR')} · ${vendas.length} ingressos confirmados</p>
+      <table><thead><tr><th>#</th><th>Nome / E-mail</th><th>Ingressos</th><th>Check-in</th></tr></thead>
+      <tbody>${rows}</tbody></table>
+      <script>window.print()</script>
+    </body></html>`
+
+    const w = window.open('', '_blank')
+    w.document.write(html)
+    w.document.close()
+  }
+
   if (loading) return <div className="text-tonha-brown/50 py-6 text-center">Carregando...</div>
 
   return (
@@ -316,6 +346,12 @@ function CheckIn() {
           <p className="text-xs text-tonha-brown/50">total</p>
         </div>
       </div>
+
+      {vendas.length > 0 && (
+        <button onClick={imprimirLista} className="btn-ghost flex items-center gap-1.5 text-sm w-full justify-center">
+          🖨️ Imprimir lista de presença
+        </button>
+      )}
 
       <div className="relative">
         <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-tonha-brown/30" />

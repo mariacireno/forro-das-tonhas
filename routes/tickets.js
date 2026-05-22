@@ -3,6 +3,7 @@ const router = express.Router()
 const { v4: uuidv4 } = require('uuid')
 const db = require('../database')
 const { buildPixPayload } = require('../utils/pix')
+const { sendConfirmacaoIngresso } = require('../utils/email')
 
 // --- helpers ---
 const getConf = (k) => db.prepare('SELECT valor FROM config WHERE chave = ?').get(k)?.valor ?? ''
@@ -110,7 +111,11 @@ router.patch('/vendas/:id/confirmar', (req, res) => {
   db.prepare("INSERT INTO transactions (id, tipo, categoria, valor, descricao, data) VALUES (?, 'receita', 'ingressos', ?, ?, datetime('now'))")
     .run(uuidv4(), venda.valor_total, descIngresso)
 
-  res.json(db.prepare('SELECT * FROM ticket_vendas WHERE id = ?').get(req.params.id))
+  const vendaConfirmada = db.prepare('SELECT * FROM ticket_vendas WHERE id = ?').get(req.params.id)
+  sendConfirmacaoIngresso(vendaConfirmada).catch(err =>
+    console.error('Email de confirmação falhou:', err.message)
+  )
+  res.json(vendaConfirmada)
 })
 
 router.patch('/vendas/:id/checkin', (req, res) => {

@@ -188,6 +188,27 @@ export default function Dashboard() {
           </div>
         )}
       </div>
+
+      {/* Backup */}
+      <div className="flex justify-end">
+        <button
+          onClick={async () => {
+            const pwd = sessionStorage.getItem('adminPwd') || ''
+            const res = await fetch('/api/admin/backup', { headers: { 'x-admin-password': pwd } })
+            if (!res.ok) return
+            const blob = await res.blob()
+            const url = URL.createObjectURL(blob)
+            const a = document.createElement('a')
+            a.href = url
+            a.download = `forro-backup-${new Date().toISOString().slice(0, 10)}.db`
+            a.click()
+            URL.revokeObjectURL(url)
+          }}
+          className="text-xs text-tonha-brown/30 hover:text-tonha-brown/60 transition-colors"
+        >
+          ⬇ Baixar backup do banco
+        </button>
+      </div>
     </div>
   )
 }
