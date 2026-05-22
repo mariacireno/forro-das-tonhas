@@ -84,6 +84,9 @@ try { db.exec("ALTER TABLE ticket_vendas ADD COLUMN quantidade_inteira INTEGER D
 try { db.exec("ALTER TABLE ticket_vendas ADD COLUMN quantidade_meia INTEGER DEFAULT 0") } catch (_) {}
 try { db.exec("ALTER TABLE ticket_vendas ADD COLUMN check_in INTEGER DEFAULT 0") } catch (_) {}
 try { db.exec("ALTER TABLE ticket_vendas ADD COLUMN check_in_at TEXT") } catch (_) {}
+try { db.exec("ALTER TABLE ticket_vendas ADD COLUMN quantidade_lote_promo INTEGER DEFAULT 0") } catch (_) {}
+try { db.exec("ALTER TABLE ticket_vendas ADD COLUMN quantidade_lote2 INTEGER DEFAULT 0") } catch (_) {}
+try { db.exec("ALTER TABLE ticket_vendas ADD COLUMN quantidade_mesa INTEGER DEFAULT 0") } catch (_) {}
 
 // Seeds de config padrão
 const seedConfig = db.prepare('INSERT OR IGNORE INTO config (chave, valor) VALUES (?, ?)')
@@ -93,6 +96,9 @@ const seedConfig = db.prepare('INSERT OR IGNORE INTO config (chave, valor) VALUE
   ['pix_cidade', 'Sao Paulo'],
   ['valor_inteira', ''],
   ['valor_meia', ''],
+  ['valor_lote_promo', ''],
+  ['valor_lote2', ''],
+  ['valor_mesa', ''],
   ['limite_por_compra', '4'],
 ].forEach(([k, v]) => seedConfig.run(k, v))
 

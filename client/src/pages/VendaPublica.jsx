@@ -38,7 +38,7 @@ function Stepper({ label, preco, value, onInc, onDec, maxReached }) {
 export default function VendaPublica() {
   const [config, setConfig] = useState({})
   const [loadingConfig, setLoadingConfig] = useState(true)
-  const [form, setForm] = useState({ nome: '', email: '', quantidade_inteira: 0, quantidade_meia: 0 })
+  const [form, setForm] = useState({ nome: '', email: '', quantidade_lote_promo: 0, quantidade_lote2: 0, quantidade_mesa: 0 })
   const [enviando, setEnviando] = useState(false)
   const [resultado, setResultado] = useState(null)
   const [erro, setErro] = useState('')
@@ -54,10 +54,11 @@ export default function VendaPublica() {
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
 
   const limite = parseInt(config.limite_por_compra) || 4
-  const precoInteira = parseFloat(config.valor_inteira) || 0
-  const precoMeia = parseFloat(config.valor_meia) || 0
-  const totalQtd = form.quantidade_inteira + form.quantidade_meia
-  const total = (form.quantidade_inteira * precoInteira) + (form.quantidade_meia * precoMeia)
+  const precoLotePromo = parseFloat(config.valor_lote_promo) || 0
+  const precoLote2 = parseFloat(config.valor_lote2) || 0
+  const precoMesa = parseFloat(config.valor_mesa) || 0
+  const totalQtd = form.quantidade_lote_promo + form.quantidade_lote2 + form.quantidade_mesa
+  const total = (form.quantidade_lote_promo * precoLotePromo) + (form.quantidade_lote2 * precoLote2) + (form.quantidade_mesa * precoMesa)
 
   const submit = async (e) => {
     e.preventDefault()
@@ -91,8 +92,9 @@ export default function VendaPublica() {
     if (!resultado) return ''
     const v = resultado.venda
     const partes = []
-    if (v.quantidade_inteira > 0) partes.push(`${v.quantidade_inteira}x inteira`)
-    if (v.quantidade_meia > 0) partes.push(`${v.quantidade_meia}x meia`)
+    if (v.quantidade_lote_promo > 0) partes.push(`${v.quantidade_lote_promo}x lote promo`)
+    if (v.quantidade_lote2 > 0) partes.push(`${v.quantidade_lote2}x 2º lote`)
+    if (v.quantidade_mesa > 0) partes.push(`${v.quantidade_mesa}x mesa`)
     return partes.length ? partes.join(' + ') : `${v.quantidade}x ${v.tipo}`
   })()
 
@@ -160,19 +162,27 @@ export default function VendaPublica() {
                   </div>
                   <div className="space-y-2">
                     <Stepper
-                      label="Inteira"
-                      preco={precoInteira}
-                      value={form.quantidade_inteira}
-                      onInc={() => set('quantidade_inteira', form.quantidade_inteira + 1)}
-                      onDec={() => set('quantidade_inteira', Math.max(0, form.quantidade_inteira - 1))}
+                      label="Lote Promocional"
+                      preco={precoLotePromo}
+                      value={form.quantidade_lote_promo}
+                      onInc={() => set('quantidade_lote_promo', form.quantidade_lote_promo + 1)}
+                      onDec={() => set('quantidade_lote_promo', Math.max(0, form.quantidade_lote_promo - 1))}
                       maxReached={totalQtd >= limite}
                     />
                     <Stepper
-                      label="Meia-entrada"
-                      preco={precoMeia}
-                      value={form.quantidade_meia}
-                      onInc={() => set('quantidade_meia', form.quantidade_meia + 1)}
-                      onDec={() => set('quantidade_meia', Math.max(0, form.quantidade_meia - 1))}
+                      label="2º Lote"
+                      preco={precoLote2}
+                      value={form.quantidade_lote2}
+                      onInc={() => set('quantidade_lote2', form.quantidade_lote2 + 1)}
+                      onDec={() => set('quantidade_lote2', Math.max(0, form.quantidade_lote2 - 1))}
+                      maxReached={totalQtd >= limite}
+                    />
+                    <Stepper
+                      label="Mesa (4 pessoas)"
+                      preco={precoMesa}
+                      value={form.quantidade_mesa}
+                      onInc={() => set('quantidade_mesa', form.quantidade_mesa + 1)}
+                      onDec={() => set('quantidade_mesa', Math.max(0, form.quantidade_mesa - 1))}
                       maxReached={totalQtd >= limite}
                     />
                   </div>

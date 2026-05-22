@@ -54,30 +54,32 @@ router.get('/vendas', (req, res) => {
 })
 
 router.post('/venda', (req, res) => {
-  const { nome, email, quantidade_inteira, quantidade_meia } = req.body
+  const { nome, email, quantidade_lote_promo, quantidade_lote2, quantidade_mesa } = req.body
   if (!nome || !email) return res.status(400).json({ error: 'Nome e email são obrigatórios' })
 
-  const qtyInteira = parseInt(quantidade_inteira) || 0
-  const qtyMeia = parseInt(quantidade_meia) || 0
-  const qtyTotal = qtyInteira + qtyMeia
+  const qtyLotePromo = parseInt(quantidade_lote_promo) || 0
+  const qtyLote2 = parseInt(quantidade_lote2) || 0
+  const qtyMesa = parseInt(quantidade_mesa) || 0
+  const qtyTotal = qtyLotePromo + qtyLote2 + qtyMesa
 
   if (qtyTotal === 0) return res.status(400).json({ error: 'Selecione pelo menos 1 ingresso' })
 
   const limite = parseInt(getConf('limite_por_compra')) || 4
-  if (qtyTotal > limite) return res.status(400).json({ error: `Máximo de ${limite} ingressos por compra` })
+  if (qtyTotal > limite) return res.status(400).json({ error: `Máximo de ${limite} por compra` })
 
-  const precoInteira = parseFloat(getConf('valor_inteira')) || 0
-  const precoMeia = parseFloat(getConf('valor_meia')) || 0
-  const valorTotal = (qtyInteira * precoInteira) + (qtyMeia * precoMeia)
+  const precoLotePromo = parseFloat(getConf('valor_lote_promo')) || 0
+  const precoLote2 = parseFloat(getConf('valor_lote2')) || 0
+  const precoMesa = parseFloat(getConf('valor_mesa')) || 0
+  const valorTotal = (qtyLotePromo * precoLotePromo) + (qtyLote2 * precoLote2) + (qtyMesa * precoMesa)
 
   const pixChave = getConf('pix_chave')
   if (!pixChave) return res.status(400).json({ error: 'Chave PIX não configurada. Contate o organizador.' })
 
   const id = uuidv4()
   db.prepare(`
-    INSERT INTO ticket_vendas (id, nome, email, tipo, quantidade, quantidade_inteira, quantidade_meia, valor_total, status)
-    VALUES (?, ?, ?, 'misto', ?, ?, ?, ?, 'pendente')
-  `).run(id, nome, email, qtyTotal, qtyInteira, qtyMeia, valorTotal)
+    INSERT INTO ticket_vendas (id, nome, email, tipo, quantidade, quantidade_lote_promo, quantidade_lote2, quantidade_mesa, valor_total, status)
+    VALUES (?, ?, ?, 'misto', ?, ?, ?, ?, ?, 'pendente')
+  `).run(id, nome, email, qtyTotal, qtyLotePromo, qtyLote2, qtyMesa, valorTotal)
 
   const pixString = buildPixPayload({
     chave: pixChave,
@@ -98,8 +100,11 @@ router.patch('/vendas/:id/confirmar', (req, res) => {
   db.prepare("UPDATE ticket_vendas SET status = 'pago' WHERE id = ?").run(req.params.id)
 
   const partes = []
-  if (venda.quantidade_inteira > 0) partes.push(`${venda.quantidade_inteira}x inteira`)
-  if (venda.quantidade_meia > 0) partes.push(`${venda.quantidade_meia}x meia`)
+  if (venda.quantidade_lote_promo > 0) partes.push(`${venda.quantidade_lote_promo}x lote promo`)
+  if (venda.quantidade_lote2 > 0) partes.push(`${venda.quantidade_lote2}x 2º lote`)
+  if (venda.quantidade_mesa > 0) partes.push(`${venda.quantidade_mesa}x mesa`)
+  if (!partes.length && venda.quantidade_inteira > 0) partes.push(`${venda.quantidade_inteira}x inteira`)
+  if (!partes.length && venda.quantidade_meia > 0) partes.push(`${venda.quantidade_meia}x meia`)
   const descIngresso = (partes.length ? partes.join(' + ') : `${venda.quantidade}x ${venda.tipo}`) + ` - ${venda.nome}`
 
   db.prepare("INSERT INTO transactions (id, tipo, categoria, valor, descricao, data) VALUES (?, 'receita', 'ingressos', ?, ?, datetime('now'))")

@@ -21,13 +21,17 @@ function TicketForm({ onSave, onClose }) {
     <form onSubmit={submit} className="space-y-4">
       <div>
         <label className="label">Tipo de ingresso</label>
-        <div className="flex gap-2">
-          {['inteiro', 'meia'].map(t => (
-            <button key={t} type="button" onClick={() => set('tipo', t)}
-              className={`flex-1 py-2 rounded-xl text-sm font-medium border transition-colors ${
-                form.tipo === t ? 'bg-tonha-terra/20 border-tonha-terra text-tonha-darkterra' : 'border-tonha-sand text-tonha-brown/60'
+        <div className="grid grid-cols-3 gap-2">
+          {[
+            { value: 'lote_promo', label: 'Lote Promo' },
+            { value: 'lote2', label: '2º Lote' },
+            { value: 'mesa', label: 'Mesa (4p)' },
+          ].map(({ value, label }) => (
+            <button key={value} type="button" onClick={() => set('tipo', value)}
+              className={`py-2 rounded-xl text-xs font-medium border transition-colors ${
+                form.tipo === value ? 'bg-tonha-terra/20 border-tonha-terra text-tonha-darkterra' : 'border-tonha-sand text-tonha-brown/60'
               }`}>
-              {t === 'inteiro' ? 'Inteiro' : 'Meia-entrada'}
+              {label}
             </button>
           ))}
         </div>
@@ -70,7 +74,7 @@ function TicketForm({ onSave, onClose }) {
 }
 
 function ConfigPix() {
-  const [conf, setConf] = useState({ pix_chave: '', pix_nome: '', pix_cidade: '', valor_inteira: '', valor_meia: '', limite_por_compra: '4' })
+  const [conf, setConf] = useState({ pix_chave: '', pix_nome: '', pix_cidade: '', valor_lote_promo: '', valor_lote2: '', valor_mesa: '', limite_por_compra: '4' })
   const [loading, setLoading] = useState(true)
   const [salvando, setSalvando] = useState(false)
   const [salvo, setSalvo] = useState(false)
@@ -106,15 +110,19 @@ function ConfigPix() {
           <input className="input" maxLength={15} value={conf.pix_cidade} onChange={e => set('pix_cidade', e.target.value)} placeholder="Sao Paulo" />
         </div>
         <div>
-          <label className="label">Valor inteiro (R$)</label>
-          <input className="input" type="number" step="0.01" min="0" value={conf.valor_inteira} onChange={e => set('valor_inteira', e.target.value)} placeholder="25,00" />
+          <label className="label">Valor Lote Promocional (R$)</label>
+          <input className="input" type="number" step="0.01" min="0" value={conf.valor_lote_promo} onChange={e => set('valor_lote_promo', e.target.value)} placeholder="20,00" />
         </div>
         <div>
-          <label className="label">Valor meia-entrada (R$)</label>
-          <input className="input" type="number" step="0.01" min="0" value={conf.valor_meia} onChange={e => set('valor_meia', e.target.value)} placeholder="12,50" />
+          <label className="label">Valor 2º Lote (R$)</label>
+          <input className="input" type="number" step="0.01" min="0" value={conf.valor_lote2} onChange={e => set('valor_lote2', e.target.value)} placeholder="25,00" />
         </div>
         <div>
-          <label className="label">Máx. ingressos por compra</label>
+          <label className="label">Valor Mesa — 4 pessoas (R$)</label>
+          <input className="input" type="number" step="0.01" min="0" value={conf.valor_mesa} onChange={e => set('valor_mesa', e.target.value)} placeholder="80,00" />
+        </div>
+        <div>
+          <label className="label">Máx. por compra</label>
           <input className="input" type="number" min="1" max="20" value={conf.limite_por_compra} onChange={e => set('limite_por_compra', e.target.value)} placeholder="4" />
         </div>
       </div>
@@ -221,6 +229,9 @@ function VendasOnline() {
                   <p className="text-xs text-tonha-brown/60">
                     {(() => {
                       const partes = []
+                      if (v.quantidade_lote_promo > 0) partes.push(`${v.quantidade_lote_promo}x lote promo`)
+                      if (v.quantidade_lote2 > 0) partes.push(`${v.quantidade_lote2}x 2º lote`)
+                      if (v.quantidade_mesa > 0) partes.push(`${v.quantidade_mesa}x mesa`)
                       if (v.quantidade_inteira > 0) partes.push(`${v.quantidade_inteira}x inteira`)
                       if (v.quantidade_meia > 0) partes.push(`${v.quantidade_meia}x meia`)
                       return partes.length ? partes.join(' + ') : `${v.quantidade}x ${v.tipo}`
@@ -272,14 +283,17 @@ function CheckIn() {
 
   const qtdDesc = (v) => {
     const partes = []
+    if (v.quantidade_lote_promo > 0) partes.push(`${v.quantidade_lote_promo}x lote promo`)
+    if (v.quantidade_lote2 > 0) partes.push(`${v.quantidade_lote2}x 2º lote`)
+    if (v.quantidade_mesa > 0) partes.push(`${v.quantidade_mesa}x mesa`)
     if (v.quantidade_inteira > 0) partes.push(`${v.quantidade_inteira}x inteira`)
     if (v.quantidade_meia > 0) partes.push(`${v.quantidade_meia}x meia`)
     return partes.length ? partes.join(' + ') : `${v.quantidade}x ${v.tipo}`
   }
 
-  const totalPessoas = vendas.reduce((s, v) => s + (v.quantidade || (v.quantidade_inteira + v.quantidade_meia) || 1), 0)
+  const totalPessoas = vendas.reduce((s, v) => s + (v.quantidade || 1), 0)
   const chegaram = vendas.filter(v => v.check_in)
-  const chegouPessoas = chegaram.reduce((s, v) => s + (v.quantidade || (v.quantidade_inteira + v.quantidade_meia) || 1), 0)
+  const chegouPessoas = chegaram.reduce((s, v) => s + (v.quantidade || 1), 0)
 
   const filtradas = busca
     ? vendas.filter(v => v.nome.toLowerCase().includes(busca.toLowerCase()) || v.email.toLowerCase().includes(busca.toLowerCase()))
