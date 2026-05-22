@@ -3,7 +3,7 @@ const router = express.Router()
 const { v4: uuidv4 } = require('uuid')
 const db = require('../database')
 const { buildPixPayload } = require('../utils/pix')
-const { sendConfirmacaoIngresso } = require('../utils/email')
+const { sendConfirmacaoIngresso, sendNotificacaoNovaVenda } = require('../utils/email')
 
 // --- helpers ---
 const getConf = (k) => db.prepare('SELECT valor FROM config WHERE chave = ?').get(k)?.valor ?? ''
@@ -107,7 +107,12 @@ router.post('/venda', (req, res) => {
     txid: id.replace(/-/g, '').slice(0, 25),
   })
 
-  res.status(201).json({ venda: db.prepare('SELECT * FROM ticket_vendas WHERE id = ?').get(id), pixString })
+  const vendaCriada = db.prepare('SELECT * FROM ticket_vendas WHERE id = ?').get(id)
+  sendNotificacaoNovaVenda(vendaCriada).catch(err =>
+    console.error('Email de notificação de nova venda falhou:', err.message)
+  )
+
+  res.status(201).json({ venda: vendaCriada, pixString })
 })
 
 router.patch('/vendas/:id/confirmar', (req, res) => {

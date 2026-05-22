@@ -163,6 +163,112 @@ function buildHtml(venda) {
 </html>`
 }
 
+async function sendNotificacaoNovaVenda(venda) {
+  const apiKey = process.env.RESEND_API_KEY
+  if (!apiKey) return
+
+  const resend = new Resend(apiKey)
+  const from   = process.env.EMAIL_FROM || 'ingressos@becodoalto.com.br'
+  const desc   = qtdDesc(venda)
+  const valor  = brl(venda.valor_total)
+
+  await resend.emails.send({
+    from:    `Forró das Tonhas <${from}>`,
+    to:      'becodoalto211@gmail.com',
+    subject: `🎟️ Nova intenção de compra — ${venda.nome}`,
+    html: `<!DOCTYPE html>
+<html lang="pt-BR">
+<head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/></head>
+<body style="margin:0;padding:0;background:#F1ECDB;font-family:Arial,Helvetica,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#F1ECDB;padding:32px 16px;">
+<tr><td align="center">
+<table width="100%" cellpadding="0" cellspacing="0" style="max-width:480px;background:#F7F2E2;border:2.5px solid #16143A;border-radius:18px;overflow:hidden;box-shadow:0 4px 0 0 #16143A;">
+
+  <tr>
+    <td style="background:#16143A;padding:22px 28px 18px;text-align:center;">
+      <div style="display:inline-block;background:#F2C82E;color:#16143A;border-radius:999px;padding:5px 14px;font-size:11px;letter-spacing:0.18em;font-weight:700;text-transform:uppercase;margin-bottom:12px;">
+        🎟️ &nbsp;NOVA INTENÇÃO DE COMPRA
+      </div>
+      <div style="font-family:'Arial Black','Impact',Arial,sans-serif;font-size:36px;font-weight:900;color:#F2C82E;letter-spacing:-1px;line-height:0.9;text-transform:uppercase;">
+        FORRÓ DAS TONHAS
+      </div>
+    </td>
+  </tr>
+
+  <tr>
+    <td style="padding:24px 28px 0;">
+      <p style="margin:0;font-size:15px;color:#16143A;line-height:1.6;">
+        Uma nova compra foi recebida e aguarda sua confirmação no painel.
+      </p>
+    </td>
+  </tr>
+
+  <tr>
+    <td style="padding:20px 28px 0;">
+      <table cellpadding="0" cellspacing="0" style="width:100%;background:#F1ECDB;border:2px solid #16143A;border-radius:14px;overflow:hidden;">
+        <tr>
+          <td style="background:#16143A;padding:10px 16px;">
+            <span style="font-size:12px;color:#F7F2E2;letter-spacing:0.14em;text-transform:uppercase;font-weight:700;">DADOS DO COMPRADOR</span>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:14px 16px;">
+            <table cellpadding="0" cellspacing="0" style="width:100%;font-size:14px;color:#16143A;">
+              <tr>
+                <td style="padding:4px 0;color:#3A3865;width:90px;">Nome</td>
+                <td style="padding:4px 0;font-weight:700;">${venda.nome}</td>
+              </tr>
+              <tr>
+                <td style="padding:4px 0;color:#3A3865;">E-mail</td>
+                <td style="padding:4px 0;">${venda.email}</td>
+              </tr>
+              ${venda.telefone ? `<tr><td style="padding:4px 0;color:#3A3865;">Telefone</td><td style="padding:4px 0;">${venda.telefone}</td></tr>` : ''}
+              <tr>
+                <td colspan="2" style="padding:6px 0;"><hr style="border:none;border-top:1px solid #E6DCBF;margin:0;"></td>
+              </tr>
+              <tr>
+                <td style="padding:4px 0;color:#3A3865;">Ingressos</td>
+                <td style="padding:4px 0;font-weight:700;">${desc}</td>
+              </tr>
+              <tr>
+                <td style="padding:4px 0;color:#3A3865;">Valor total</td>
+                <td style="padding:4px 0;font-family:'Arial Black',Arial,sans-serif;font-size:18px;font-weight:900;color:#137A35;">${valor}</td>
+              </tr>
+              <tr>
+                <td style="padding:4px 0;color:#3A3865;">Status</td>
+                <td style="padding:4px 0;">
+                  <span style="background:#F2C82E;color:#16143A;border-radius:999px;padding:3px 10px;font-size:12px;font-weight:700;">⏳ Aguardando confirmação</span>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+
+  <tr>
+    <td style="padding:20px 28px 28px;">
+      <p style="margin:0;font-size:13px;color:#3A3865;line-height:1.6;">
+        Acesse o painel em <strong>Ingressos → Vendas Online</strong> para confirmar o pagamento e liberar o ingresso.
+      </p>
+    </td>
+  </tr>
+
+  <tr>
+    <td style="background:#E6DCBF;border-top:2px solid #16143A;padding:12px 28px;text-align:center;">
+      <p style="margin:0;font-size:11px;color:#3A3865;">Forró das Tonhas · 13 de junho de 2026 · Olinda, PE</p>
+    </td>
+  </tr>
+
+</table>
+</td></tr>
+</table>
+</body>
+</html>`,
+  })
+}
+
 async function sendConfirmacaoIngresso(venda) {
   const apiKey = process.env.RESEND_API_KEY
   if (!apiKey) return
@@ -178,4 +284,4 @@ async function sendConfirmacaoIngresso(venda) {
   })
 }
 
-module.exports = { sendConfirmacaoIngresso }
+module.exports = { sendConfirmacaoIngresso, sendNotificacaoNovaVenda }
