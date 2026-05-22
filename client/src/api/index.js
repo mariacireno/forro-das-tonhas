@@ -57,6 +57,7 @@ export const api = {
   checkInVenda: (id) => req(`/tickets/vendas/${id}/checkin`, { method: 'PATCH' }),
   getCheckins: () => req('/tickets/checkins'),
   toggleCheckin: (id) => req(`/tickets/checkins/${id}/toggle`, { method: 'PATCH' }),
+  scanCheckin: (id) => req(`/tickets/checkins/${id}/scan`, { method: 'PATCH' }),
 
   // Transactions
   updateTransaction: (id, data) => req(`/transactions/${id}`, { method: 'PUT', body: JSON.stringify(data) }),

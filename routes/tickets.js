@@ -147,7 +147,8 @@ router.patch('/vendas/:id/confirmar', (req, res) => {
   for (let i = 0; i < (venda.quantidade_mesa || 0) * 4; i++)   insC.run(uuidv4(), req.params.id, 'Mesa',       venda.nome, seq++)
 
   const vendaConfirmada = db.prepare('SELECT * FROM ticket_vendas WHERE id = ?').get(req.params.id)
-  sendConfirmacaoIngresso(vendaConfirmada).catch(err =>
+  const checkins = db.prepare('SELECT * FROM ticket_checkins WHERE venda_id = ? ORDER BY seq').all(req.params.id)
+  sendConfirmacaoIngresso(vendaConfirmada, checkins).catch(err =>
     console.error('Email de confirmação falhou:', err.message)
   )
   res.json(vendaConfirmada)
@@ -170,6 +171,15 @@ router.patch('/checkins/:id/toggle', (req, res) => {
   const novo = c.check_in ? 0 : 1
   db.prepare('UPDATE ticket_checkins SET check_in = ?, check_in_at = ? WHERE id = ?')
     .run(novo, novo ? new Date().toISOString() : null, req.params.id)
+  res.json(db.prepare('SELECT * FROM ticket_checkins WHERE id = ?').get(req.params.id))
+})
+
+router.patch('/checkins/:id/scan', (req, res) => {
+  const c = db.prepare('SELECT * FROM ticket_checkins WHERE id = ?').get(req.params.id)
+  if (!c) return res.status(404).json({ error: 'QR Code inválido' })
+  if (c.check_in) return res.status(409).json({ error: 'Ingresso já utilizado', checkin: c })
+  db.prepare('UPDATE ticket_checkins SET check_in = 1, check_in_at = ? WHERE id = ?')
+    .run(new Date().toISOString(), req.params.id)
   res.json(db.prepare('SELECT * FROM ticket_checkins WHERE id = ?').get(req.params.id))
 })
 

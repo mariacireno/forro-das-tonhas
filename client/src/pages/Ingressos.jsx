@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react'
-import { Plus, Trash2, Ticket, Banknote, Settings, ChevronDown, Check, X, Search } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { Plus, Trash2, Ticket, Banknote, Settings, ChevronDown, Check, X, Search, ScanLine } from 'lucide-react'
 import { api } from '../api'
 import Modal from '../components/Modal'
 import { formatBRL, formatDate } from '../utils/format'
@@ -244,10 +244,59 @@ function VendasOnline() {
   )
 }
 
+function QrScanner({ onScan, onClose }) {
+  const videoRef = useRef(null)
+  const readerRef = useRef(null)
+
+  useEffect(() => {
+    let stopped = false
+    import('@zxing/browser').then(({ BrowserQRCodeReader, BrowserCodeReader }) => {
+      if (stopped) return
+      const hints = new Map()
+      const reader = new BrowserQRCodeReader(hints, { delayBetweenScanAttempts: 300 })
+      readerRef.current = reader
+      BrowserCodeReader.listVideoInputDevices().then(devices => {
+        if (stopped || !devices.length) return
+        // prefere câmera traseira em mobile
+        const back = devices.find(d => /back|rear|environment/i.test(d.label)) || devices[devices.length - 1]
+        reader.decodeFromVideoDevice(back.deviceId, videoRef.current, (result, err) => {
+          if (stopped || !result) return
+          const text = result.getText()
+          if (text.startsWith('checkin:')) {
+            onScan(text.replace('checkin:', ''))
+          }
+        })
+      })
+    })
+    return () => {
+      stopped = true
+      readerRef.current?.reset?.()
+    }
+  }, [onScan])
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black flex flex-col">
+      <div className="flex items-center justify-between px-4 py-3 bg-tonha-dark">
+        <span className="text-white font-medium text-sm">Aponte para o QR Code do ingresso</span>
+        <button onClick={onClose} className="text-white p-1"><X size={22} /></button>
+      </div>
+      <div className="flex-1 relative">
+        <video ref={videoRef} className="w-full h-full object-cover" />
+        {/* mira */}
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+          <div style={{ width: 220, height: 220, border: '3px solid #1EA84A', borderRadius: 18, boxShadow: '0 0 0 9999px rgba(0,0,0,0.55)' }} />
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function CheckIn() {
   const [checkins, setCheckins] = useState([])
   const [loading, setLoading] = useState(true)
   const [busca, setBusca] = useState('')
+  const [scanning, setScanning] = useState(false)
+  const [feedback, setFeedback] = useState(null) // { ok, nome, tipo, hora } | { ok: false, msg }
 
   const load = () =>
     api.getCheckins()
@@ -260,9 +309,28 @@ function CheckIn() {
     return () => clearInterval(id)
   }, [])
 
-  const toggle = async (id) => {
-    await api.toggleCheckin(id)
-    load()
+  const handleScan = async (checkinId) => {
+    setScanning(false)
+    const pwd = sessionStorage.getItem('adminPwd') || ''
+    try {
+      const res = await fetch(`/api/tickets/checkins/${checkinId}/scan`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', 'x-admin-password': pwd },
+      })
+      const data = await res.json()
+      if (res.ok) {
+        setFeedback({ ok: true, nome: data.nome, tipo: data.tipo, hora: new Date(data.check_in_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) })
+        load()
+      } else if (res.status === 409) {
+        const at = data.checkin?.check_in_at ? new Date(data.checkin.check_in_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : ''
+        setFeedback({ ok: false, msg: `Ingresso já utilizado${at ? ` às ${at}` : ''}`, nome: data.checkin?.nome, tipo: data.checkin?.tipo })
+      } else {
+        setFeedback({ ok: false, msg: data.error || 'QR Code inválido' })
+      }
+    } catch {
+      setFeedback({ ok: false, msg: 'Erro de conexão' })
+    }
+    setTimeout(() => setFeedback(null), 4000)
   }
 
   const entraram = checkins.filter(c => c.check_in)
@@ -283,23 +351,15 @@ function CheckIn() {
         <td>${c.tipo}</td>
         <td style="text-align:center">${c.check_in ? `✓ ${c.check_in_at ? new Date(c.check_in_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : ''}` : ''}</td>
       </tr>`).join('')
-
     const html = `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8">
       <title>Lista de Presença — Forró das Tonhas</title>
-      <style>
-        body{font-family:sans-serif;padding:24px;color:#222}
-        h1{font-size:18px;margin:0}p{font-size:13px;color:#666;margin:4px 0 16px}
-        table{width:100%;border-collapse:collapse;font-size:13px}
-        th,td{border:1px solid #ddd;padding:7px 10px;text-align:left;vertical-align:top}
-        th{background:#f5f5f5;font-weight:600}
-      </style></head><body>
+      <style>body{font-family:sans-serif;padding:24px;color:#222}h1{font-size:18px;margin:0}p{font-size:13px;color:#666;margin:4px 0 16px}table{width:100%;border-collapse:collapse;font-size:13px}th,td{border:1px solid #ddd;padding:7px 10px;text-align:left;vertical-align:top}th{background:#f5f5f5;font-weight:600}</style>
+      </head><body>
       <h1>Forró das Tonhas — Lista de Presença</h1>
       <p>Gerada em ${new Date().toLocaleString('pt-BR')} · ${checkins.length} ingressos · ${entraram.length} já entraram</p>
       <table><thead><tr><th>#</th><th>Nome / E-mail</th><th>Tipo</th><th>Check-in</th></tr></thead>
-      <tbody>${rows}</tbody></table>
-      <script>window.print()</script>
+      <tbody>${rows}</tbody></table><script>window.print()</script>
     </body></html>`
-
     const w = window.open('', '_blank')
     w.document.write(html)
     w.document.close()
@@ -309,6 +369,17 @@ function CheckIn() {
 
   return (
     <div className="space-y-4">
+      {/* Feedback de scan */}
+      {feedback && (
+        <div className={`rounded-2xl p-4 border-2 ${feedback.ok ? 'bg-green-50 border-green-400' : 'bg-red-50 border-red-400'}`}>
+          <p className={`text-lg font-bold ${feedback.ok ? 'text-green-700' : 'text-red-600'}`}>
+            {feedback.ok ? '✅ Entrada confirmada!' : '❌ ' + feedback.msg}
+          </p>
+          {feedback.nome && <p className="text-sm mt-1 text-tonha-brown">{feedback.nome} · {feedback.tipo}</p>}
+          {feedback.ok && feedback.hora && <p className="text-xs text-green-600">às {feedback.hora}</p>}
+        </div>
+      )}
+
       <div className="grid grid-cols-3 gap-3">
         <div className="card text-center py-3">
           <p className="text-2xl font-bold text-green-600">{entraram.length}</p>
@@ -323,6 +394,13 @@ function CheckIn() {
           <p className="text-xs text-tonha-brown/50">total</p>
         </div>
       </div>
+
+      <button
+        onClick={() => setScanning(true)}
+        className="btn-primary flex items-center justify-center gap-2 w-full"
+      >
+        <ScanLine size={18} /> Escanear QR Code
+      </button>
 
       {checkins.length > 0 && (
         <button onClick={imprimirLista} className="btn-ghost flex items-center gap-1.5 text-sm w-full justify-center">
@@ -358,21 +436,18 @@ function CheckIn() {
                     </p>
                   )}
                 </div>
-                <button
-                  onClick={() => toggle(c.id)}
-                  className={`shrink-0 px-3 py-1.5 rounded-xl text-xs font-medium border transition-colors ${
-                    c.check_in
-                      ? 'bg-green-50 border-green-300 text-green-700'
-                      : 'border-tonha-terra text-tonha-terra hover:bg-tonha-terra/10'
-                  }`}
-                >
-                  {c.check_in ? '✓ Entrou' : 'Confirmar entrada'}
-                </button>
+                <span className={`shrink-0 px-3 py-1.5 rounded-xl text-xs font-medium border ${
+                  c.check_in ? 'bg-green-50 border-green-300 text-green-700' : 'border-tonha-sand text-tonha-brown/40'
+                }`}>
+                  {c.check_in ? '✓ Entrou' : 'Aguardando'}
+                </span>
               </li>
             ))}
           </ul>
         )}
       </div>
+
+      {scanning && <QrScanner onScan={handleScan} onClose={() => setScanning(false)} />}
     </div>
   )
 }
