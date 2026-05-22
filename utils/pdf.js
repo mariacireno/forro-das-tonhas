@@ -30,7 +30,7 @@ async function buildTicketPdf(venda, checkins) {
       // pill tag
       doc.roundedRect(140, 20, 120, 18, 9).fill('#1EA84A')
       doc.font('Helvetica-Bold').fontSize(8).fillColor('#F7F2E2')
-        .text('🎟  INGRESSO CONFIRMADO', 148, 25, { width: 104, align: 'center' })
+        .text('INGRESSO CONFIRMADO', 148, 25, { width: 104, align: 'center' })
 
       // nome do evento
       doc.font('Helvetica-Bold').fontSize(28).fillColor('#F2C82E')
