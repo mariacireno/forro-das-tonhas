@@ -1,5 +1,4 @@
 const { Resend } = require('resend')
-const QRCode = require('qrcode')
 const { buildTicketPdf } = require('./pdf')
 
 function qtdDesc(venda) {
@@ -16,7 +15,7 @@ function brl(v) {
   return `R$ ${Number(v).toFixed(2).replace('.', ',')}`
 }
 
-function buildHtml(venda, qrItems = []) {
+function buildHtml(venda) {
   const desc  = qtdDesc(venda)
   const valor = brl(venda.valor_total)
 
@@ -118,21 +117,6 @@ function buildHtml(venda, qrItems = []) {
       </table>
     </td>
   </tr>
-
-  <!-- QR CODES -->
-  ${qrItems.length > 0 ? `<tr><td style="padding:20px 28px 0;">
-    <div style="font-family:'Arial Black',Arial,sans-serif;font-size:12px;color:#16143A;text-transform:uppercase;letter-spacing:0.14em;font-weight:700;margin-bottom:12px;">Seus ingressos</div>
-    ${qrItems.map(q => `
-    <table cellpadding="0" cellspacing="0" style="width:100%;background:#F1ECDB;border:2px solid #16143A;border-radius:14px;overflow:hidden;margin-bottom:10px;">
-      <tr><td style="background:#16143A;padding:8px 14px;">
-        <span style="font-size:11px;color:#F7F2E2;letter-spacing:0.14em;text-transform:uppercase;font-weight:700;">${q.tipo}</span>
-      </td></tr>
-      <tr><td style="padding:14px;text-align:center;">
-        <img src="cid:${q.cid}" alt="QR Code" width="160" height="160" style="display:block;margin:0 auto;border:2px solid #16143A;border-radius:8px;" />
-        <div style="margin-top:8px;font-size:11px;color:#3A3865;">Apresente este QR Code na entrada</div>
-      </td></tr>
-    </table>`).join('')}
-  </td></tr>` : ''}
 
   <!-- LOCATION -->
   <tr>
@@ -293,33 +277,21 @@ async function sendConfirmacaoIngresso(venda, checkins = []) {
   const resend = new Resend(apiKey)
   const from   = process.env.EMAIL_FROM || 'ingressos@becodoalto.com.br'
 
-  // Gera QR codes como buffers PNG para inline attachments (cid:)
-  const qrItems = await Promise.all(checkins.map(async (c, i) => {
-    const buf = await QRCode.toBuffer(`checkin:${c.id}`, { width: 200, margin: 1, color: { dark: '#16143A', light: '#F7F2E2' } })
-    return { tipo: c.tipo, cid: `qr${i}`, buffer: buf }
-  }))
-
-  // Gera PDF com um ingresso por página
+  // Gera PDF com um ingresso por página (contém os QR codes)
   const pdfBuffer = checkins.length > 0 ? await buildTicketPdf(venda, checkins) : null
 
-  const inlineAttachments = qrItems.map(q => ({
-    filename:   `qr-${q.cid}.png`,
-    content:    q.buffer.toString('base64'),
-    content_id: q.cid,
-    inline:     true,
-  }))
-
-  const pdfAttachment = pdfBuffer ? [{
-    filename: `ingresso-forro-das-tonhas-${venda.nome.replace(/\s+/g, '-').toLowerCase()}.pdf`,
-    content:  pdfBuffer.toString('base64'),
-  }] : []
-
   const payload = {
-    from:        `Forró das Tonhas <${from}>`,
-    to:          venda.email,
-    subject:     '✅ Ingresso confirmado — Forró das Tonhas 2026',
-    html:        buildHtml(venda, qrItems),
-    attachments: [...inlineAttachments, ...pdfAttachment],
+    from:    `Forró das Tonhas <${from}>`,
+    to:      venda.email,
+    subject: '✅ Ingresso confirmado — Forró das Tonhas 2026',
+    html:    buildHtml(venda),
+  }
+
+  if (pdfBuffer) {
+    payload.attachments = [{
+      filename: `ingresso-forro-das-tonhas-${venda.nome.replace(/\s+/g, '-').toLowerCase()}.pdf`,
+      content:  pdfBuffer.toString('base64'),
+    }]
   }
 
   await resend.emails.send(payload)
