@@ -1,81 +1,180 @@
-const nodemailer = require('nodemailer')
-
-function getTransporter() {
-  const { SMTP_HOST, SMTP_USER, SMTP_PASS } = process.env
-  if (!SMTP_HOST || !SMTP_USER || !SMTP_PASS) return null
-  return nodemailer.createTransport({
-    host: SMTP_HOST,
-    port: parseInt(process.env.SMTP_PORT) || 587,
-    secure: parseInt(process.env.SMTP_PORT) === 465,
-    auth: { user: SMTP_USER, pass: SMTP_PASS },
-    family: 4,
-  })
-}
+const { Resend } = require('resend')
 
 function qtdDesc(venda) {
   const partes = []
-  if (venda.quantidade_lote_promo > 0) partes.push(`${venda.quantidade_lote_promo}x Lote Promocional`)
-  if (venda.quantidade_lote2 > 0) partes.push(`${venda.quantidade_lote2}x 2º Lote`)
-  if (venda.quantidade_mesa > 0) partes.push(`${venda.quantidade_mesa}x Mesa (4 pessoas)`)
-  if (venda.quantidade_inteira > 0) partes.push(`${venda.quantidade_inteira}x Inteira`)
-  if (venda.quantidade_meia > 0) partes.push(`${venda.quantidade_meia}x Meia-entrada`)
-  return partes.join(', ') || `${venda.quantidade}x ingresso`
+  if (venda.quantidade_lote_promo > 0) partes.push(`${venda.quantidade_lote_promo}× Lote Promocional`)
+  if (venda.quantidade_lote2 > 0)      partes.push(`${venda.quantidade_lote2}× 2º Lote`)
+  if (venda.quantidade_mesa > 0)       partes.push(`${venda.quantidade_mesa}× Mesa (4 pessoas)`)
+  if (venda.quantidade_inteira > 0)    partes.push(`${venda.quantidade_inteira}× Inteira`)
+  if (venda.quantidade_meia > 0)       partes.push(`${venda.quantidade_meia}× Meia-entrada`)
+  return partes.join(' + ') || `${venda.quantidade}× ingresso`
+}
+
+function brl(v) {
+  return `R$ ${Number(v).toFixed(2).replace('.', ',')}`
+}
+
+function buildHtml(venda) {
+  const desc  = qtdDesc(venda)
+  const valor = brl(venda.valor_total)
+
+  return `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Ingresso Confirmado — Forró das Tonhas</title>
+</head>
+<body style="margin:0;padding:0;background:#F1ECDB;font-family:Arial,Helvetica,sans-serif;">
+
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#F1ECDB;padding:32px 16px;">
+<tr><td align="center">
+<table width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;background:#F7F2E2;border:2.5px solid #16143A;border-radius:18px;overflow:hidden;box-shadow:0 4px 0 0 #16143A;">
+
+  <!-- HEADER -->
+  <tr>
+    <td style="background:#16143A;padding:28px 28px 20px;text-align:center;">
+      <!-- Pill tag -->
+      <div style="display:inline-block;background:#1EA84A;color:#F7F2E2;border-radius:999px;padding:5px 14px;font-size:11px;letter-spacing:0.18em;font-weight:700;text-transform:uppercase;margin-bottom:14px;">
+        ✅ &nbsp;INGRESSO CONFIRMADO
+      </div>
+      <!-- Wordmark -->
+      <div style="font-family:'Arial Black','Impact',Arial,sans-serif;font-size:44px;font-weight:900;color:#1EA84A;letter-spacing:-1px;line-height:0.9;text-transform:uppercase;
+        -webkit-text-stroke:1.5px #F7F2E2;text-shadow:-1px -1px 0 #F7F2E2,1px -1px 0 #F7F2E2,-1px 1px 0 #F7F2E2,1px 1px 0 #F7F2E2;">
+        FORRÓ DAS TONHAS
+      </div>
+      <!-- Tagline -->
+      <div style="margin-top:10px;font-size:12px;color:#F7F2E2;opacity:0.7;letter-spacing:0.12em;text-transform:uppercase;">
+        PÉ DE SERRA · RAIZ · OLINDA
+      </div>
+    </td>
+  </tr>
+
+  <!-- DATE STRIP -->
+  <tr>
+    <td style="background:#16143A;padding:0 28px 24px;">
+      <table cellpadding="0" cellspacing="0" style="width:100%;background:#1E1C3A;border:2px solid #3A3865;border-radius:14px;padding:14px 18px;">
+        <tr>
+          <td style="width:60px;text-align:center;vertical-align:middle;padding-right:16px;border-right:1px solid #3A3865;">
+            <div style="font-family:'Arial Black',Arial,sans-serif;font-size:38px;font-weight:900;color:#F2C82E;line-height:1;">13</div>
+            <div style="font-size:11px;color:#F7F2E2;letter-spacing:0.12em;text-transform:uppercase;opacity:0.8;">JUN 2026</div>
+          </td>
+          <td style="vertical-align:middle;padding-left:16px;">
+            <div style="font-size:10px;color:#F7F2E2;letter-spacing:0.16em;text-transform:uppercase;opacity:0.6;">SÁBADO</div>
+            <div style="font-size:17px;font-weight:700;color:#F7F2E2;margin:3px 0;">16h às 22h</div>
+            <div style="font-size:12px;color:#F7F2E2;opacity:0.75;">
+              📍 <a href="https://www.instagram.com/becodoalto.olinda/" style="color:#F7F2E2;text-decoration:none;">@becodoalto.olinda</a>
+            </div>
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+
+  <!-- GREETING -->
+  <tr>
+    <td style="padding:24px 28px 0;">
+      <p style="margin:0;font-size:16px;color:#16143A;line-height:1.5;">
+        Olá, <strong>${venda.nome}</strong>! 🎉<br>
+        Seu pagamento foi confirmado e seu ingresso está garantido. Te esperamos no sábado!
+      </p>
+    </td>
+  </tr>
+
+  <!-- ORDER CARD -->
+  <tr>
+    <td style="padding:20px 28px 0;">
+      <table cellpadding="0" cellspacing="0" style="width:100%;background:#F1ECDB;border:2px solid #16143A;border-radius:14px;overflow:hidden;">
+        <tr>
+          <td style="background:#16143A;padding:10px 16px;">
+            <span style="font-family:'Arial Black',Arial,sans-serif;font-size:12px;color:#F7F2E2;letter-spacing:0.14em;text-transform:uppercase;">SEU PEDIDO</span>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:14px 16px;">
+            <table cellpadding="0" cellspacing="0" style="width:100%;font-size:14px;color:#16143A;">
+              <tr>
+                <td style="padding:4px 0;color:#3A3865;">Ingressos</td>
+                <td style="padding:4px 0;font-weight:700;text-align:right;">${desc}</td>
+              </tr>
+              <tr>
+                <td colspan="2" style="padding:6px 0;"><hr style="border:none;border-top:1px solid #E6DCBF;margin:0;"></td>
+              </tr>
+              <tr>
+                <td style="padding:4px 0;color:#3A3865;">Valor pago</td>
+                <td style="padding:4px 0;font-family:'Arial Black',Arial,sans-serif;font-size:20px;font-weight:900;color:#137A35;text-align:right;">${valor}</td>
+              </tr>
+              <tr>
+                <td style="padding:4px 0;color:#3A3865;">Status</td>
+                <td style="padding:4px 0;text-align:right;">
+                  <span style="background:#1EA84A;color:#F7F2E2;border-radius:999px;padding:3px 10px;font-size:12px;font-weight:700;">✓ Pago</span>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+
+  <!-- LOCATION -->
+  <tr>
+    <td style="padding:20px 28px 0;">
+      <table cellpadding="0" cellspacing="0" style="width:100%;background:#F1ECDB;border-left:4px solid #1EA84A;border-radius:0 10px 10px 0;padding:12px 16px;">
+        <tr>
+          <td>
+            <div style="font-size:12px;font-weight:700;color:#16143A;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:4px;">📍 Local do evento</div>
+            <div style="font-size:13px;color:#3A3865;line-height:1.5;">
+              Rua 27 de Janeiro (Rua da Pitombeira), 211<br>
+              Sítio Histórico · Olinda · PE
+            </div>
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+
+  <!-- INSTAGRAM -->
+  <tr>
+    <td style="padding:16px 28px 24px;">
+      <p style="margin:0;font-size:13px;color:#3A3865;">
+        Siga a gente no Instagram:
+        <a href="https://www.instagram.com/becodoalto.olinda/" style="color:#1EA84A;font-weight:700;text-decoration:none;">@becodoalto.olinda</a>
+      </p>
+    </td>
+  </tr>
+
+  <!-- FOOTER -->
+  <tr>
+    <td style="background:#E6DCBF;border-top:2px solid #16143A;padding:14px 28px;text-align:center;">
+      <p style="margin:0;font-size:11px;color:#3A3865;line-height:1.5;">
+        Guarde este e-mail como comprovante e apresente na entrada.<br>
+        Dúvidas? Entre em contato pelo Instagram
+        <a href="https://www.instagram.com/becodoalto.olinda/" style="color:#16143A;">@becodoalto.olinda</a>
+      </p>
+    </td>
+  </tr>
+
+</table>
+</td></tr>
+</table>
+
+</body>
+</html>`
 }
 
 async function sendConfirmacaoIngresso(venda) {
-  const transporter = getTransporter()
-  if (!transporter) return
+  const apiKey = process.env.RESEND_API_KEY
+  if (!apiKey) return
 
-  const from = process.env.EMAIL_FROM || process.env.SMTP_USER
-  const desc = qtdDesc(venda)
-  const valor = `R$ ${Number(venda.valor_total).toFixed(2).replace('.', ',')}`
+  const resend = new Resend(apiKey)
+  const from   = process.env.EMAIL_FROM || 'ingressos@becodoalto.com.br'
 
-  await transporter.sendMail({
-    from: `"Forró das Tonhas" <${from}>`,
-    to: venda.email,
+  await resend.emails.send({
+    from:    `Forró das Tonhas <${from}>`,
+    to:      venda.email,
     subject: '✅ Ingresso confirmado — Forró das Tonhas 2026',
-    html: `
-<!DOCTYPE html>
-<html lang="pt-BR">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
-<body style="margin:0;padding:20px;background:#faf5e8;font-family:sans-serif;">
-  <div style="max-width:480px;margin:0 auto;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,.08)">
-    <div style="background:#7c3d1e;color:#fff;padding:28px 24px;text-align:center;">
-      <p style="margin:0;font-size:13px;opacity:.8;">🪗 Ingresso Confirmado</p>
-      <h1 style="margin:8px 0 4px;font-size:22px;font-weight:700;">Forró das Tonhas</h1>
-      <p style="margin:0;font-size:13px;opacity:.7;">13 de junho de 2026 · 16h às 22h</p>
-    </div>
-
-    <div style="padding:24px;">
-      <p style="margin:0 0 16px;font-size:15px;color:#3d2010;">
-        Olá, <strong>${venda.nome}</strong>! Seu pagamento foi confirmado e seu ingresso está garantido. Até sábado! 🎉
-      </p>
-
-      <div style="background:#fef9ed;border:1px solid #f5d76e;border-radius:12px;padding:16px;margin-bottom:20px;">
-        <table style="width:100%;border-collapse:collapse;font-size:14px;color:#3d2010;">
-          <tr><td style="padding:4px 0;color:#7c5b3e;">Ingressos</td><td style="padding:4px 0;font-weight:600;text-align:right;">${desc}</td></tr>
-          <tr><td style="padding:4px 0;color:#7c5b3e;">Valor pago</td><td style="padding:4px 0;font-weight:600;text-align:right;">${valor}</td></tr>
-          <tr><td style="padding:4px 0;color:#7c5b3e;">Data</td><td style="padding:4px 0;text-align:right;">Sábado, 13 de junho de 2026</td></tr>
-          <tr><td style="padding:4px 0;color:#7c5b3e;">Horário</td><td style="padding:4px 0;text-align:right;">16h às 22h</td></tr>
-        </table>
-      </div>
-
-      <div style="border-left:3px solid #7c3d1e;padding-left:12px;margin-bottom:20px;">
-        <p style="margin:0;font-size:13px;color:#5c4030;font-weight:600;">📍 Local do evento</p>
-        <p style="margin:4px 0 0;font-size:13px;color:#5c4030;">Rua 27 de Janeiro (Rua da Pitombeira), 211<br>Olinda — PE</p>
-      </div>
-
-      <p style="margin:0;font-size:13px;color:#888;">
-        Siga a gente: <a href="https://www.instagram.com/becodoalto.olinda/" style="color:#7c3d1e;">@becodoalto.olinda</a>
-      </p>
-    </div>
-
-    <div style="background:#f5ede0;padding:14px 24px;text-align:center;">
-      <p style="margin:0;font-size:11px;color:#a08060;">Você receberá este e-mail como comprovante. Guarde-o para apresentar na entrada.</p>
-    </div>
-  </div>
-</body>
-</html>`,
+    html:    buildHtml(venda),
   })
 }
 

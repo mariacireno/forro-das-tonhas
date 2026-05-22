@@ -55,6 +55,8 @@ export const api = {
   confirmarVenda: (id) => req(`/tickets/vendas/${id}/confirmar`, { method: 'PATCH' }),
   deleteVenda: (id) => req(`/tickets/vendas/${id}`, { method: 'DELETE' }),
   checkInVenda: (id) => req(`/tickets/vendas/${id}/checkin`, { method: 'PATCH' }),
+  getCheckins: () => req('/tickets/checkins'),
+  toggleCheckin: (id) => req(`/tickets/checkins/${id}/toggle`, { method: 'PATCH' }),
 
   // Transactions
   updateTransaction: (id, data) => req(`/transactions/${id}`, { method: 'PUT', body: JSON.stringify(data) }),

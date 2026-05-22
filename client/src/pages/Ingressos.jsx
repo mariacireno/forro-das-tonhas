@@ -261,13 +261,13 @@ function VendasOnline() {
 }
 
 function CheckIn() {
-  const [vendas, setVendas] = useState([])
+  const [checkins, setCheckins] = useState([])
   const [loading, setLoading] = useState(true)
   const [busca, setBusca] = useState('')
 
   const load = () =>
-    api.getVendas()
-      .then(v => setVendas(v.filter(x => x.status === 'pago')))
+    api.getCheckins()
+      .then(setCheckins)
       .finally(() => setLoading(false))
 
   useEffect(() => {
@@ -276,35 +276,28 @@ function CheckIn() {
     return () => clearInterval(id)
   }, [])
 
-  const checkin = async (id) => {
-    await api.checkInVenda(id)
+  const toggle = async (id) => {
+    await api.toggleCheckin(id)
     load()
   }
 
-  const qtdDesc = (v) => {
-    const partes = []
-    if (v.quantidade_lote_promo > 0) partes.push(`${v.quantidade_lote_promo}x lote promo`)
-    if (v.quantidade_lote2 > 0) partes.push(`${v.quantidade_lote2}x 2º lote`)
-    if (v.quantidade_mesa > 0) partes.push(`${v.quantidade_mesa}x mesa`)
-    if (v.quantidade_inteira > 0) partes.push(`${v.quantidade_inteira}x inteira`)
-    if (v.quantidade_meia > 0) partes.push(`${v.quantidade_meia}x meia`)
-    return partes.length ? partes.join(' + ') : `${v.quantidade}x ${v.tipo}`
-  }
+  const entraram = checkins.filter(c => c.check_in)
+  const pendentes = checkins.filter(c => !c.check_in)
 
-  const chegaram = vendas.filter(v => v.check_in)
-  const pendentes = vendas.filter(v => !v.check_in)
-
-  const filtradas = busca
-    ? vendas.filter(v => v.nome.toLowerCase().includes(busca.toLowerCase()) || v.email.toLowerCase().includes(busca.toLowerCase()))
-    : vendas
+  const filtrados = busca
+    ? checkins.filter(c =>
+        c.nome.toLowerCase().includes(busca.toLowerCase()) ||
+        (c.email || '').toLowerCase().includes(busca.toLowerCase())
+      )
+    : checkins
 
   const imprimirLista = () => {
-    const rows = vendas.map((v, i) => `
-      <tr style="background:${v.check_in ? '#f0fdf4' : '#fff'}">
+    const rows = checkins.map((c, i) => `
+      <tr style="background:${c.check_in ? '#f0fdf4' : '#fff'}">
         <td>${i + 1}</td>
-        <td><strong>${v.nome}</strong><br><span style="font-size:11px;color:#888">${v.email}</span></td>
-        <td>${qtdDesc(v)}</td>
-        <td style="text-align:center">${v.check_in ? `✓ ${v.check_in_at ? new Date(v.check_in_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : ''}` : ''}</td>
+        <td><strong>${c.nome}</strong><br><span style="font-size:11px;color:#888">${c.email || ''}</span></td>
+        <td>${c.tipo}</td>
+        <td style="text-align:center">${c.check_in ? `✓ ${c.check_in_at ? new Date(c.check_in_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : ''}` : ''}</td>
       </tr>`).join('')
 
     const html = `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8">
@@ -317,8 +310,8 @@ function CheckIn() {
         th{background:#f5f5f5;font-weight:600}
       </style></head><body>
       <h1>Forró das Tonhas — Lista de Presença</h1>
-      <p>Gerada em ${new Date().toLocaleString('pt-BR')} · ${vendas.length} ingressos confirmados</p>
-      <table><thead><tr><th>#</th><th>Nome / E-mail</th><th>Ingressos</th><th>Check-in</th></tr></thead>
+      <p>Gerada em ${new Date().toLocaleString('pt-BR')} · ${checkins.length} ingressos · ${entraram.length} já entraram</p>
+      <table><thead><tr><th>#</th><th>Nome / E-mail</th><th>Tipo</th><th>Check-in</th></tr></thead>
       <tbody>${rows}</tbody></table>
       <script>window.print()</script>
     </body></html>`
@@ -334,7 +327,7 @@ function CheckIn() {
     <div className="space-y-4">
       <div className="grid grid-cols-3 gap-3">
         <div className="card text-center py-3">
-          <p className="text-2xl font-bold text-green-600">{chegaram.length}</p>
+          <p className="text-2xl font-bold text-green-600">{entraram.length}</p>
           <p className="text-xs text-tonha-brown/50">entraram</p>
         </div>
         <div className="card text-center py-3">
@@ -342,12 +335,12 @@ function CheckIn() {
           <p className="text-xs text-tonha-brown/50">pendentes</p>
         </div>
         <div className="card text-center py-3">
-          <p className="text-2xl font-bold text-tonha-brown">{vendas.length}</p>
+          <p className="text-2xl font-bold text-tonha-brown">{checkins.length}</p>
           <p className="text-xs text-tonha-brown/50">total</p>
         </div>
       </div>
 
-      {vendas.length > 0 && (
+      {checkins.length > 0 && (
         <button onClick={imprimirLista} className="btn-ghost flex items-center gap-1.5 text-sm w-full justify-center">
           🖨️ Imprimir lista de presença
         </button>
@@ -364,32 +357,32 @@ function CheckIn() {
       </div>
 
       <div className="card">
-        {vendas.length === 0 ? (
+        {checkins.length === 0 ? (
           <p className="text-center text-tonha-brown/50 py-8">Nenhum ingresso confirmado ainda.</p>
-        ) : filtradas.length === 0 ? (
+        ) : filtrados.length === 0 ? (
           <p className="text-center text-tonha-brown/50 py-6">Nenhum resultado para "{busca}".</p>
         ) : (
           <ul className="divide-y divide-tonha-sand">
-            {filtradas.map(v => (
-              <li key={v.id} className={`flex items-center gap-3 py-3 transition-opacity ${v.check_in ? 'opacity-60' : ''}`}>
+            {filtrados.map(c => (
+              <li key={c.id} className={`flex items-center gap-3 py-3 transition-opacity ${c.check_in ? 'opacity-60' : ''}`}>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-tonha-brown truncate">{v.nome}</p>
-                  <p className="text-xs text-tonha-brown/50">{qtdDesc(v)}</p>
-                  {v.check_in && v.check_in_at && (
+                  <p className="text-sm font-medium text-tonha-brown truncate">{c.nome}</p>
+                  <p className="text-xs text-tonha-brown/50">{c.tipo}</p>
+                  {c.check_in && c.check_in_at && (
                     <p className="text-xs text-green-600">
-                      Entrou às {new Date(v.check_in_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                      Entrou às {new Date(c.check_in_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
                     </p>
                   )}
                 </div>
                 <button
-                  onClick={() => checkin(v.id)}
+                  onClick={() => toggle(c.id)}
                   className={`shrink-0 px-3 py-1.5 rounded-xl text-xs font-medium border transition-colors ${
-                    v.check_in
+                    c.check_in
                       ? 'bg-green-50 border-green-300 text-green-700'
                       : 'border-tonha-terra text-tonha-terra hover:bg-tonha-terra/10'
                   }`}
                 >
-                  {v.check_in ? '✓ Entrou' : 'Confirmar entrada'}
+                  {c.check_in ? '✓ Entrou' : 'Confirmar entrada'}
                 </button>
               </li>
             ))}

@@ -87,6 +87,39 @@ try { db.exec("ALTER TABLE ticket_vendas ADD COLUMN check_in_at TEXT") } catch (
 try { db.exec("ALTER TABLE ticket_vendas ADD COLUMN quantidade_lote_promo INTEGER DEFAULT 0") } catch (_) {}
 try { db.exec("ALTER TABLE ticket_vendas ADD COLUMN quantidade_lote2 INTEGER DEFAULT 0") } catch (_) {}
 try { db.exec("ALTER TABLE ticket_vendas ADD COLUMN quantidade_mesa INTEGER DEFAULT 0") } catch (_) {}
+try { db.exec("ALTER TABLE ticket_vendas ADD COLUMN cpf TEXT") } catch (_) {}
+try { db.exec("ALTER TABLE ticket_vendas ADD COLUMN telefone TEXT") } catch (_) {}
+
+// Check-in por ingresso individual
+db.exec(`
+  CREATE TABLE IF NOT EXISTS ticket_checkins (
+    id TEXT PRIMARY KEY,
+    venda_id TEXT NOT NULL,
+    tipo TEXT NOT NULL,
+    nome TEXT NOT NULL,
+    seq INTEGER NOT NULL DEFAULT 1,
+    check_in INTEGER DEFAULT 0,
+    check_in_at TEXT
+  )
+`)
+// Migração: popula checkins para vendas confirmadas que ainda não têm entradas
+;(() => {
+  const { randomUUID } = require('crypto')
+  const semCheckins = db.prepare(`
+    SELECT v.* FROM ticket_vendas v
+    WHERE v.status = 'pago'
+    AND NOT EXISTS (SELECT 1 FROM ticket_checkins c WHERE c.venda_id = v.id)
+  `).all()
+  const ins = db.prepare('INSERT INTO ticket_checkins (id, venda_id, tipo, nome, seq) VALUES (?, ?, ?, ?, ?)')
+  for (const v of semCheckins) {
+    let seq = 1
+    for (let i = 0; i < (v.quantidade_lote_promo || 0); i++) ins.run(randomUUID(), v.id, 'Lote Promo', v.nome, seq++)
+    for (let i = 0; i < (v.quantidade_lote2 || 0); i++)      ins.run(randomUUID(), v.id, '2º Lote',    v.nome, seq++)
+    for (let i = 0; i < (v.quantidade_mesa || 0) * 4; i++)   ins.run(randomUUID(), v.id, 'Mesa',       v.nome, seq++)
+    for (let i = 0; i < (v.quantidade_inteira || 0); i++)    ins.run(randomUUID(), v.id, 'Inteira',    v.nome, seq++)
+    for (let i = 0; i < (v.quantidade_meia || 0); i++)       ins.run(randomUUID(), v.id, 'Meia',       v.nome, seq++)
+  }
+})()
 
 // Seeds de config padrão
 const seedConfig = db.prepare('INSERT OR IGNORE INTO config (chave, valor) VALUES (?, ?)')

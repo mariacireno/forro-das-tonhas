@@ -2,6 +2,46 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ============================================================
+   FORRÓ DAS TONHAS — Design tokens (junina palette)
+   ============================================================ */
+:root {
+  --cream:        #F1ECDB;
+  --cream-deep:   #E6DCBF;
+  --cream-warm:   #F7F2E2;
+  --green:        #1EA84A;
+  --green-deep:   #137A35;
+  --indigo:       #2826D6;
+  --indigo-deep:  #1E1C9E;
+  --yellow:       #F2C82E;
+  --yellow-deep:  #D9AC15;
+  --red:          #E63D1F;
+  --ink:          #16143A;
+  --ink-soft:     #3A3865;
+
+  --font-display:      "Bowlby One", "Anton", system-ui, sans-serif;
+  --font-display-cond: "Anton", "Bowlby One", system-ui, sans-serif;
+  --font-body:         "Familjen Grotesk", system-ui, sans-serif;
+  --font-script:       "Permanent Marker", cursive;
+
+  --shadow-card: 0 2px 0 0 rgba(22,20,58,0.12), 0 8px 24px -8px rgba(22,20,58,0.18);
+  --shadow-cta:  0 4px 0 0 var(--ink), 0 8px 16px -4px rgba(22,20,58,0.3);
+}
+
+.paper-bg {
+  background-color: var(--cream);
+  background-image:
+    radial-gradient(rgba(22,20,58,0.05) 1px, transparent 1px),
+    radial-gradient(rgba(22,20,58,0.03) 1px, transparent 1px);
+  background-size: 3px 3px, 7px 7px;
+  background-position: 0 0, 1px 1px;
+}
+.paper-bg-warm {
+  background-color: var(--cream-warm);
+  background-image: radial-gradient(rgba(22,20,58,0.04) 1px, transparent 1px);
+  background-size: 4px 4px;
+}
+
 body {
   background-color: #FDF6EC;
   color: #3d2b1f;

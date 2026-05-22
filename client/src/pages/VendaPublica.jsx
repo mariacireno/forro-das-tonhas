@@ -1,46 +1,669 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Fragment } from 'react'
 import QRCode from 'qrcode'
 import { formatBRL } from '../utils/format'
+import { Bandeirinhas, Star, Sparkle, SunRays, Sanfona } from '../components/Decor'
 
-function Stepper({ label, preco, value, onInc, onDec, maxReached }) {
+/* ── shared helpers ── */
+
+const D = {
+  display: { fontFamily: 'var(--font-display)', fontWeight: 400, letterSpacing: '-0.01em', lineHeight: 0.92, textTransform: 'uppercase' },
+  displayCond: { fontFamily: 'var(--font-display-cond)', fontWeight: 400, letterSpacing: '0.005em', lineHeight: 0.95, textTransform: 'uppercase' },
+  body: { fontFamily: 'var(--font-body)', fontWeight: 400, lineHeight: 1.4 },
+}
+
+function StepProgress({ step }) {
+  const steps = [
+    { n: '01', label: 'Ingressos' },
+    { n: '02', label: 'Seus dados' },
+    { n: '03', label: 'Pagar' },
+  ]
   return (
-    <div className="flex items-center justify-between p-3 bg-tonha-sand/30 rounded-xl border border-tonha-sand">
-      <div>
-        <p className="text-sm font-medium text-tonha-brown">{label}</p>
-        {preco > 0
-          ? <p className="text-xs text-tonha-brown/50">{formatBRL(preco)} cada</p>
-          : <p className="text-xs text-tonha-brown/40">valor não configurado</p>
-        }
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 22 }}>
+      {steps.map((s, i) => {
+        const done = i + 1 < step
+        const active = i + 1 === step
+        return (
+          <Fragment key={s.n}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+              <div style={{
+                width: 28, height: 28, borderRadius: '50%',
+                background: done ? 'var(--green)' : active ? 'var(--yellow)' : 'var(--cream-warm)',
+                border: '2px solid var(--ink)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                ...D.display, fontSize: 11, color: 'var(--ink)',
+              }}>
+                {done ? '✓' : s.n}
+              </div>
+              {active && (
+                <span style={{ ...D.displayCond, fontSize: 11, color: 'var(--ink)', letterSpacing: '0.1em' }}>
+                  {s.label.toUpperCase()}
+                </span>
+              )}
+            </div>
+            {i < steps.length - 1 && (
+              <div style={{ flex: 1, height: 2, background: done ? 'var(--ink)' : 'var(--cream-deep)' }} />
+            )}
+          </Fragment>
+        )
+      })}
+    </div>
+  )
+}
+
+function TicketRow({ id, name, price, unit, badge, qty, onChange, maxReached }) {
+  const active = qty > 0
+  const color = id === 'mesa' ? 'var(--red)' : id === 'lote2' ? 'var(--indigo)' : 'var(--green)'
+  const icon = id === 'mesa' ? '🪑' : '🎟'
+  const canInc = !maxReached
+
+  return (
+    <div style={{
+      background: active ? 'var(--cream-warm)' : 'rgba(247,242,226,0.6)',
+      border: '2.5px solid var(--ink)',
+      borderRadius: 16, padding: '14px',
+      marginBottom: 10,
+      display: 'flex', alignItems: 'center', gap: 12,
+      boxShadow: active ? '0 3px 0 0 var(--ink)' : '0 2px 0 0 rgba(22,20,58,0.5)',
+      transition: 'box-shadow .12s ease',
+    }}>
+      {/* Color icon box */}
+      <div style={{
+        flexShrink: 0, width: 44, height: 44,
+        background: color, borderRadius: 12, border: '2px solid var(--ink)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+      }}>
+        <span style={{ fontSize: 22 }}>{icon}</span>
       </div>
-      <div className="flex items-center gap-3">
-        <button
-          type="button"
-          onClick={onDec}
-          disabled={value === 0}
-          className="w-8 h-8 rounded-full border border-tonha-sand bg-white text-tonha-brown font-bold text-lg leading-none disabled:opacity-30 transition-opacity"
-        >
-          −
-        </button>
-        <span className="w-5 text-center font-bold text-tonha-brown text-base">{value}</span>
-        <button
-          type="button"
-          onClick={onInc}
-          disabled={maxReached}
-          className="w-8 h-8 rounded-full border border-tonha-terra bg-tonha-terra/10 text-tonha-darkterra font-bold text-lg leading-none disabled:opacity-30 transition-opacity"
-        >
-          +
-        </button>
+
+      {/* Info */}
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
+          <span style={{ ...D.displayCond, fontSize: 16, color: 'var(--ink)' }}>{name}</span>
+          {badge && (
+            <span style={{
+              ...D.displayCond, fontSize: 10,
+              background: 'var(--red)', color: 'var(--cream-warm)',
+              padding: '2px 6px', borderRadius: 999, letterSpacing: '0.08em',
+            }}>
+              {badge.toUpperCase()}
+            </span>
+          )}
+        </div>
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
+          <span style={{ ...D.display, fontSize: 22, color: price > 0 ? 'var(--green-deep)' : 'var(--ink-soft)' }}>
+            {price > 0 ? formatBRL(price) : '–'}
+          </span>
+          <span style={{ ...D.body, fontSize: 11, color: 'var(--ink-soft)' }}>{unit}</span>
+        </div>
+      </div>
+
+      {/* Stepper */}
+      <div style={{
+        flexShrink: 0, display: 'flex', alignItems: 'center',
+        background: 'var(--cream-warm)', border: '2px solid var(--ink)', borderRadius: 999, padding: 2,
+      }}>
+        <button type="button" onClick={() => onChange(-1)} disabled={qty === 0}
+          aria-label="Diminuir"
+          style={{
+            width: 28, height: 28, borderRadius: '50%', border: 'none',
+            background: qty === 0 ? 'transparent' : 'var(--cream-deep)',
+            color: qty === 0 ? 'var(--ink-soft)' : 'var(--ink)',
+            fontSize: 18, fontWeight: 700, cursor: qty === 0 ? 'not-allowed' : 'pointer',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}
+        >−</button>
+        <div style={{ minWidth: 22, textAlign: 'center', ...D.display, fontSize: 18, color: 'var(--ink)' }}>{qty}</div>
+        <button type="button" onClick={() => onChange(1)} disabled={!canInc}
+          aria-label="Aumentar"
+          style={{
+            width: 28, height: 28, borderRadius: '50%', border: 'none',
+            background: !canInc ? 'var(--cream-deep)' : 'var(--green)',
+            color: !canInc ? 'var(--ink-soft)' : 'var(--cream-warm)',
+            fontSize: 18, fontWeight: 700, cursor: !canInc ? 'not-allowed' : 'pointer',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}
+        >+</button>
       </div>
     </div>
   )
 }
 
+function BtnPrimary({ disabled, onClick, children, style = {} }) {
+  return (
+    <button
+      type="button"
+      disabled={disabled}
+      onClick={onClick}
+      style={{
+        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+        ...D.displayCond, fontSize: 18, letterSpacing: '0.04em',
+        background: disabled ? 'var(--cream-deep)' : 'var(--green)',
+        color: disabled ? 'var(--ink-soft)' : 'var(--cream-warm)',
+        border: '2.5px solid var(--ink)', borderRadius: 999, padding: '16px 28px',
+        cursor: disabled ? 'not-allowed' : 'pointer',
+        boxShadow: disabled ? '0 2px 0 0 var(--ink-soft)' : 'var(--shadow-cta)',
+        width: '100%', transition: 'transform .12s ease, box-shadow .12s ease',
+        ...style,
+      }}
+    >
+      {children}
+    </button>
+  )
+}
+
+function StickyFooter({ children }) {
+  return (
+    <div style={{
+      position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 10,
+      background: 'var(--cream-warm)', borderTop: '2.5px solid var(--ink)',
+      padding: '14px 16px 18px',
+      boxShadow: '0 -8px 24px -8px rgba(22,20,58,0.2)',
+    }}>
+      <div style={{ maxWidth: 520, margin: '0 auto' }}>
+        {children}
+      </div>
+    </div>
+  )
+}
+
+function DarkHeader({ onBack }) {
+  return (
+    <div style={{
+      padding: '14px 16px', background: 'var(--ink)', color: 'var(--cream-warm)',
+      display: 'flex', alignItems: 'center', gap: 12,
+      position: 'sticky', top: 0, zIndex: 10,
+    }}>
+      <button type="button" onClick={onBack} style={{
+        background: 'transparent', border: 'none', color: 'var(--cream-warm)',
+        fontSize: 14, ...D.body, cursor: 'pointer',
+        padding: '6px 10px', borderRadius: 8,
+        display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0,
+      }}>← Voltar</button>
+      <div style={{
+        flex: 1, textAlign: 'center',
+        ...D.displayCond, fontSize: 16, letterSpacing: '0.12em', color: 'var(--cream-warm)',
+        paddingRight: 70,
+      }}>
+        FORRÓ DAS TONHAS
+      </div>
+    </div>
+  )
+}
+
+/* ── Step 1: Ticket selection ── */
+
+function useIsDesktop() {
+  const [isDesktop, setIsDesktop] = useState(() => window.innerWidth >= 768)
+  useEffect(() => {
+    const mq = window.matchMedia('(min-width: 768px)')
+    const handler = (e) => setIsDesktop(e.matches)
+    mq.addEventListener('change', handler)
+    return () => mq.removeEventListener('change', handler)
+  }, [])
+  return isDesktop
+}
+
+function StepTickets({ config, qty, setQty, onAdvance }) {
+  const isDesktop = useIsDesktop()
+  const limite = parseInt(config.limite_por_compra) || 2
+  const precos = {
+    promo: parseFloat(config.valor_lote_promo) || 0,
+    lote2: parseFloat(config.valor_lote2) || 0,
+    mesa:  parseFloat(config.valor_mesa)  || 0,
+  }
+  const totalQtd = qty.promo + qty.lote2 + qty.mesa
+  const totalVal = qty.promo * precos.promo + qty.lote2 * precos.lote2 + qty.mesa * precos.mesa
+
+  const update = (id, d) => {
+    setQty(q => {
+      const others = Object.entries(q).reduce((s, [k, v]) => k !== id ? s + v : s, 0)
+      const next = Math.max(0, (q[id] || 0) + d)
+      if (d > 0 && next + others > limite) return q
+      return { ...q, [id]: next }
+    })
+  }
+
+  const TICKETS = [
+    { id: 'promo', name: 'Lote Promocional', price: precos.promo, unit: '/ unid.', badge: null },
+    { id: 'lote2', name: '2º Lote',          price: precos.lote2, unit: '/ unid.', badge: null },
+    { id: 'mesa',  name: 'Mesa para 4',       price: precos.mesa,  unit: '/ mesa',  badge: null },
+  ]
+
+  const ticketRows = TICKETS.map(t => (
+    <TicketRow key={t.id} {...t} qty={qty[t.id] || 0} onChange={(d) => update(t.id, d)} maxReached={totalQtd >= limite} />
+  ))
+
+  /* ── DESKTOP ── */
+  if (isDesktop) {
+    return (
+      <div style={{ minHeight: '100dvh', background: 'var(--cream)' }} className="paper-bg">
+        {/* Nav */}
+        <nav style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          padding: '18px 48px', borderBottom: '2px solid var(--ink)',
+          background: 'var(--cream-warm)',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <Sanfona width={30} color="var(--indigo)" />
+            <div style={{ ...D.display, fontSize: 22, color: 'var(--green)', WebkitTextStroke: '1px var(--ink)', paintOrder: 'stroke fill', letterSpacing: '-0.01em' }}>
+              FORRÓ DAS TONHAS
+            </div>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 28 }}>
+            <a href="https://www.instagram.com/becodoalto.olinda/" target="_blank" rel="noopener noreferrer"
+              style={{ ...D.displayCond, fontSize: 13, color: 'var(--ink)', textDecoration: 'none', letterSpacing: '0.12em' }}>
+              @BECODOALTO.OLINDA
+            </a>
+            <span style={{ ...D.displayCond, fontSize: 13, color: 'var(--ink-soft)', letterSpacing: '0.1em' }}>13 JUN 2026</span>
+          </div>
+        </nav>
+
+        {/* Bandeirinhas */}
+        <div style={{ height: 70 }}>
+          <Bandeirinhas count={12} height={70} />
+        </div>
+
+        {/* 2-col grid */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 0.8fr', gap: 48, padding: '24px 48px 80px', maxWidth: 1280, margin: '0 auto' }}>
+
+          {/* LEFT: hero */}
+          <div style={{ position: 'relative', paddingBottom: 60 }}>
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: 'var(--ink)', color: 'var(--cream-warm)', padding: '6px 14px', borderRadius: 999, ...D.displayCond, fontSize: 12, letterSpacing: '0.2em', marginBottom: 20 }}>
+              <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--green)' }} />
+              VENDA OFICIAL · INGRESSOS ANTECIPADOS
+            </div>
+
+            <div style={{ ...D.display, fontSize: 148, color: 'var(--green)', WebkitTextStroke: '3px var(--ink)', paintOrder: 'stroke fill', lineHeight: 0.85, letterSpacing: '-0.025em' }}>
+              FORRÓ
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 20, margin: '10px 0' }}>
+              <span style={{ ...D.display, fontSize: 52, color: 'var(--ink)' }}>DAS</span>
+              <Sparkle size={40} fill="var(--indigo)" />
+            </div>
+            <div style={{ ...D.display, fontSize: 148, color: 'var(--green)', WebkitTextStroke: '3px var(--ink)', paintOrder: 'stroke fill', lineHeight: 0.85, letterSpacing: '-0.025em' }}>
+              TONHAS
+            </div>
+
+            {/* Date strip */}
+            <div style={{ marginTop: 28, background: 'var(--ink)', color: 'var(--cream-warm)', borderRadius: 16, padding: '16px 20px', display: 'flex', alignItems: 'center', gap: 18, maxWidth: 380, position: 'relative' }}>
+              <div style={{ flexShrink: 0, textAlign: 'center', lineHeight: 0.9 }}>
+                <div style={{ ...D.display, fontSize: 44, color: 'var(--yellow)' }}>13</div>
+                <div style={{ ...D.displayCond, fontSize: 15, letterSpacing: '0.1em' }}>JUN · 2026</div>
+              </div>
+              <div style={{ flex: 1, ...D.body, fontSize: 14 }}>
+                <div style={{ opacity: 0.7, ...D.displayCond, letterSpacing: '0.12em', fontSize: 11 }}>SÁBADO</div>
+                <div style={{ fontWeight: 600, fontSize: 18 }}>16h às 22h</div>
+                <div style={{ opacity: 0.8, marginTop: 4 }}>
+                  <a href="https://www.instagram.com/becodoalto.olinda/" target="_blank" rel="noopener noreferrer" style={{ color: 'inherit', textDecoration: 'none' }}>
+                    📍 @becodoalto.olinda
+                  </a>
+                </div>
+              </div>
+              <div style={{ position: 'absolute', top: -12, right: -10 }}>
+                <Star size={32} fill="var(--green)" rotate={20} />
+              </div>
+            </div>
+            <div style={{ marginTop: 10, ...D.body, fontSize: 13, color: 'var(--ink-soft)', lineHeight: 1.5 }}>
+              Rua 27 de Janeiro (Rua da Pitombeira), 211 · Sítio Histórico · Olinda · PE
+            </div>
+
+            {/* Decorative sun */}
+            <div style={{ position: 'absolute', left: -30, bottom: -10, opacity: 0.8 }}>
+              <SunRays size={160} fill="var(--yellow)" />
+            </div>
+          </div>
+
+          {/* RIGHT: ticket card */}
+          <div style={{ position: 'relative' }}>
+            <div style={{ position: 'absolute', top: -18, right: -10, zIndex: 1 }}>
+              <Star size={44} fill="var(--red)" rotate={15} />
+            </div>
+
+            <div style={{ background: 'var(--cream-warm)', border: '2.5px solid var(--ink)', borderRadius: 22, padding: 24, boxShadow: 'var(--shadow-card)', position: 'sticky', top: 24 }}>
+              {/* Compact date in card */}
+              <div style={{ background: 'var(--ink)', color: 'var(--cream-warm)', borderRadius: 14, padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 14, marginBottom: 16 }}>
+                <div style={{ flexShrink: 0, textAlign: 'center', lineHeight: 0.9 }}>
+                  <div style={{ ...D.display, fontSize: 34, color: 'var(--yellow)' }}>13</div>
+                  <div style={{ ...D.displayCond, fontSize: 12, letterSpacing: '0.1em' }}>JUN · 2026</div>
+                </div>
+                <div style={{ flex: 1, ...D.body, fontSize: 13 }}>
+                  <div style={{ opacity: 0.7, ...D.displayCond, letterSpacing: '0.1em', fontSize: 10 }}>SÁBADO · 16h às 22h</div>
+                  <div style={{ opacity: 0.85, marginTop: 4, fontSize: 12 }}>
+                    <a href="https://www.instagram.com/becodoalto.olinda/" target="_blank" rel="noopener noreferrer" style={{ color: 'inherit', textDecoration: 'none' }}>
+                      📍 @becodoalto.olinda
+                    </a>
+                  </div>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 12 }}>
+                <div style={{ ...D.displayCond, fontSize: 20, color: 'var(--ink)' }}>ESCOLHA SEU INGRESSO</div>
+                <div style={{ ...D.body, fontSize: 11, color: 'var(--ink-soft)' }}>máx. {limite} / pedido</div>
+              </div>
+
+              {ticketRows}
+
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', padding: '10px 4px', marginTop: 4 }}>
+                <span style={{ ...D.body, color: 'var(--ink-soft)', fontSize: 13 }}>
+                  {totalQtd === 0 ? 'Nenhum ingresso' : `${totalQtd} ${totalQtd === 1 ? 'item' : 'itens'}`}
+                </span>
+                <span style={{ ...D.display, fontSize: 36, color: 'var(--green-deep)' }}>{formatBRL(totalVal)}</span>
+              </div>
+
+              <BtnPrimary disabled={totalQtd === 0} onClick={onAdvance}>
+                Continuar · PIX na hora →
+              </BtnPrimary>
+              <div style={{ textAlign: 'center', fontSize: 11, ...D.body, color: 'var(--ink-soft)', marginTop: 10 }}>
+                🔒 Ambiente seguro · QR Code PIX gerado na hora
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Info strip */}
+        <div style={{ background: 'var(--green)', color: 'var(--ink)', borderTop: '2.5px solid var(--ink)', padding: '14px 48px', display: 'flex', alignItems: 'center', gap: 40, ...D.displayCond, fontSize: 15, letterSpacing: '0.1em', overflow: 'hidden', whiteSpace: 'nowrap' }}>
+          <span>✦ FORRÓ PÉ DE SERRA</span>
+          <span>✦ QUINTETO AO VIVO</span>
+          <span>✦ COMIDA DE BOTECO</span>
+          <span>✦ SÍTIO HISTÓRICO</span>
+          <span>✦ OLINDA · PE</span>
+          <span>✦ 13/06/2026</span>
+        </div>
+      </div>
+    )
+  }
+
+  /* ── MOBILE ── */
+  return (
+    <div style={{ minHeight: '100dvh', background: 'var(--cream)' }} className="paper-bg">
+      {/* Hero */}
+      <div style={{ position: 'relative' }}>
+        <div style={{ height: 56, marginTop: -8 }}>
+          <Bandeirinhas count={6} height={56} />
+        </div>
+
+        <div style={{ display: 'flex', justifyContent: 'center', marginTop: 10 }}>
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: 'var(--ink)', color: 'var(--cream-warm)', padding: '5px 12px', borderRadius: 999, ...D.displayCond, fontSize: 11, letterSpacing: '0.18em' }}>
+            <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--green)' }} />
+            VENDA OFICIAL · INGRESSOS ANTECIPADOS
+          </div>
+        </div>
+
+        <div style={{ padding: '14px 20px 0', textAlign: 'center', position: 'relative' }}>
+          <div style={{ position: 'absolute', top: 14, left: 10 }}><Star size={22} fill="var(--yellow)" rotate={-15} /></div>
+          <div style={{ position: 'absolute', top: 32, right: 14 }}><Sparkle size={18} fill="var(--indigo)" /></div>
+          <div style={{ ...D.display, fontSize: 56, color: 'var(--green)', WebkitTextStroke: '1.5px var(--ink)', paintOrder: 'stroke fill', letterSpacing: '-0.02em' }}>
+            FORRÓ<br />DAS TONHAS
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', justifyContent: 'center', marginTop: -4, position: 'relative', minHeight: 160 }}>
+          <Sanfona width={170} color="var(--indigo)" />
+          <div style={{ position: 'absolute', left: 6, bottom: -10 }}><SunRays size={90} fill="var(--yellow)" /></div>
+        </div>
+
+        <div style={{ margin: '18px 20px 0', background: 'var(--ink)', color: 'var(--cream-warm)', borderRadius: 16, padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 14, position: 'relative' }}>
+          <div style={{ flexShrink: 0, textAlign: 'center', lineHeight: 0.9 }}>
+            <div style={{ ...D.display, fontSize: 36, color: 'var(--yellow)' }}>13</div>
+            <div style={{ ...D.displayCond, fontSize: 14, color: 'var(--cream-warm)', letterSpacing: '0.1em' }}>JUN · 2026</div>
+          </div>
+          <div style={{ flex: 1, ...D.body, fontSize: 13 }}>
+            <div style={{ opacity: 0.7, ...D.displayCond, letterSpacing: '0.12em', fontSize: 11 }}>SÁBADO</div>
+            <div style={{ fontWeight: 600, fontSize: 16 }}>16h às 22h</div>
+            <div style={{ opacity: 0.8, marginTop: 4 }}>
+              <a href="https://www.instagram.com/becodoalto.olinda/" target="_blank" rel="noopener noreferrer" style={{ color: 'inherit', textDecoration: 'none' }}>
+                📍 @becodoalto.olinda
+              </a>
+            </div>
+          </div>
+          <div style={{ position: 'absolute', top: -10, right: -8 }}><Star size={28} fill="var(--green)" rotate={20} /></div>
+        </div>
+
+        <div style={{ margin: '10px 20px 0', ...D.body, fontSize: 12, color: 'var(--ink-soft)', textAlign: 'center', lineHeight: 1.5 }}>
+          Rua 27 de Janeiro (Rua da Pitombeira), 211<br />Sítio Histórico · Olinda · PE
+        </div>
+      </div>
+
+      <div style={{ padding: '22px 16px 140px' }}>
+        <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', padding: '0 6px 12px' }}>
+          <div style={{ ...D.displayCond, fontSize: 22, color: 'var(--ink)' }}>ESCOLHA SEU INGRESSO</div>
+          <div style={{ ...D.body, fontSize: 11, color: 'var(--ink-soft)' }}>máx. {limite} / pedido</div>
+        </div>
+        {ticketRows}
+      </div>
+
+      <StickyFooter>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 10 }}>
+          <div style={{ ...D.body, fontSize: 13, color: 'var(--ink-soft)' }}>
+            {totalQtd === 0 ? 'Nenhum ingresso' : `${totalQtd} ${totalQtd === 1 ? 'item' : 'itens'}`}
+          </div>
+          <div style={{ ...D.displayCond, fontSize: 28, color: 'var(--ink)' }}>{formatBRL(totalVal)}</div>
+        </div>
+        <BtnPrimary disabled={totalQtd === 0} onClick={onAdvance}>
+          Continuar · PIX na hora →
+        </BtnPrimary>
+        <div style={{ textAlign: 'center', fontSize: 11, ...D.body, color: 'var(--ink-soft)', marginTop: 8 }}>
+          🔒 Ambiente seguro · QR Code PIX gerado na hora
+        </div>
+      </StickyFooter>
+    </div>
+  )
+}
+
+/* ── Step 2: Personal data ── */
+
+const inputStyle = {
+  width: '100%', background: 'var(--cream-warm)',
+  border: '2px solid var(--ink)', borderRadius: 14,
+  padding: '14px 16px', fontFamily: 'var(--font-body)', fontSize: 16,
+  color: 'var(--ink)', outline: 'none', boxSizing: 'border-box',
+}
+const labelStyle = {
+  fontFamily: 'var(--font-display-cond)', fontSize: 13,
+  letterSpacing: '0.08em', textTransform: 'uppercase',
+  color: 'var(--ink)', display: 'block', marginBottom: 8,
+}
+
+function StepDados({ qty, config, form, setForm, enviando, erro, onBack, onSubmit }) {
+  const precos = {
+    promo: parseFloat(config.valor_lote_promo) || 0,
+    lote2: parseFloat(config.valor_lote2) || 0,
+    mesa: parseFloat(config.valor_mesa) || 0,
+  }
+  const totalVal = qty.promo * precos.promo + qty.lote2 * precos.lote2 + qty.mesa * precos.mesa
+  const valid = form.nome.trim().length > 2 && form.email.includes('@') && form.email.includes('.')
+
+  const set = (k) => (e) => setForm(f => ({ ...f, [k]: e.target.value }))
+
+  return (
+    <div style={{ minHeight: '100dvh', background: 'var(--cream)' }} className="paper-bg">
+      <DarkHeader onBack={onBack} />
+
+      <div style={{ padding: '20px 16px 140px', maxWidth: 520, margin: '0 auto' }}>
+        <StepProgress step={2} />
+
+        <div style={{ ...D.displayCond, fontSize: 28, color: 'var(--ink)', marginBottom: 4 }}>
+          QUEM VAI ARRASTAR O PÉ?
+        </div>
+        <div style={{ ...D.body, fontSize: 13, color: 'var(--ink-soft)', marginBottom: 20 }}>
+          O ingresso vai pro seu e-mail com QR code de entrada.
+        </div>
+
+        <label style={labelStyle} htmlFor="venda-nome">Nome completo *</label>
+        <input
+          id="venda-nome"
+          style={inputStyle}
+          value={form.nome}
+          onChange={set('nome')}
+          placeholder="Seu nome completo"
+          autoComplete="name"
+        />
+
+        <div style={{ height: 14 }} />
+
+        <label style={labelStyle} htmlFor="venda-email">E-mail *</label>
+        <input
+          id="venda-email"
+          style={inputStyle}
+          type="email"
+          value={form.email}
+          onChange={set('email')}
+          placeholder="seu@email.com"
+          autoComplete="email"
+        />
+
+        <div style={{ height: 14 }} />
+
+        <label style={labelStyle} htmlFor="venda-tel">Celular</label>
+        <input
+          id="venda-tel"
+          style={inputStyle}
+          value={form.telefone}
+          onChange={set('telefone')}
+          placeholder="(81) 9 9999-9999"
+          autoComplete="tel"
+          inputMode="tel"
+        />
+
+        {/* Order summary */}
+        <div style={{
+          background: 'var(--cream-warm)', border: '2.5px solid var(--ink)',
+          borderRadius: 22, padding: 16, marginTop: 22,
+          boxShadow: 'var(--shadow-card)',
+        }}>
+          <div style={{ ...D.displayCond, fontSize: 16, color: 'var(--ink)', marginBottom: 10 }}>SEU PEDIDO</div>
+          {qty.promo > 0 && (
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6, ...D.body, fontSize: 14, color: 'var(--ink)' }}>
+              <span>{qty.promo}× Lote Promocional</span>
+              <span style={{ fontWeight: 600 }}>{formatBRL(qty.promo * precos.promo)}</span>
+            </div>
+          )}
+          {qty.lote2 > 0 && (
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6, ...D.body, fontSize: 14, color: 'var(--ink)' }}>
+              <span>{qty.lote2}× 2º Lote</span>
+              <span style={{ fontWeight: 600 }}>{formatBRL(qty.lote2 * precos.lote2)}</span>
+            </div>
+          )}
+          {qty.mesa > 0 && (
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6, ...D.body, fontSize: 14, color: 'var(--ink)' }}>
+              <span>{qty.mesa}× Mesa para 4</span>
+              <span style={{ fontWeight: 600 }}>{formatBRL(qty.mesa * precos.mesa)}</span>
+            </div>
+          )}
+          <div style={{ height: 1, background: 'var(--ink)', opacity: 0.15, margin: '10px 0' }} />
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+            <span style={{ ...D.displayCond, fontSize: 14 }}>TOTAL</span>
+            <span style={{ ...D.display, fontSize: 28, color: 'var(--green-deep)' }}>{formatBRL(totalVal)}</span>
+          </div>
+        </div>
+
+        {erro && (
+          <div style={{
+            marginTop: 12, padding: '10px 14px',
+            background: 'rgba(230,61,31,0.08)', border: '1.5px solid var(--red)',
+            borderRadius: 12, ...D.body, fontSize: 14, color: 'var(--red)',
+          }}>
+            {erro}
+          </div>
+        )}
+      </div>
+
+      <StickyFooter>
+        <BtnPrimary disabled={!valid || enviando} onClick={onSubmit}>
+          {enviando ? 'Gerando PIX...' : 'Gerar QR Code PIX →'}
+        </BtnPrimary>
+      </StickyFooter>
+    </div>
+  )
+}
+
+/* ── Step 3: PIX QR Code ── */
+
+function StepPix({ resultado, copiado, onCopiar, onBack }) {
+  const v = resultado.venda
+  const partes = []
+  if (v.quantidade_lote_promo > 0) partes.push(`${v.quantidade_lote_promo}× Lote Promo`)
+  if (v.quantidade_lote2 > 0)      partes.push(`${v.quantidade_lote2}× 2º Lote`)
+  if (v.quantidade_mesa > 0)       partes.push(`${v.quantidade_mesa}× Mesa`)
+  const desc = partes.join(' + ')
+
+  return (
+    <div style={{ minHeight: '100dvh', background: 'var(--cream)' }} className="paper-bg">
+      <DarkHeader onBack={onBack} />
+
+      <div style={{ padding: '20px 16px 40px', maxWidth: 520, margin: '0 auto' }}>
+        <StepProgress step={3} />
+
+        <div style={{ ...D.displayCond, fontSize: 28, color: 'var(--ink)' }}>PAGUE COM PIX</div>
+        <div style={{ ...D.body, fontSize: 13, color: 'var(--ink-soft)', marginBottom: 16 }}>
+          Após pagar, o ingresso cai no seu e-mail em breve.
+        </div>
+
+        {/* QR card */}
+        <div style={{
+          background: 'var(--cream-warm)', border: '2.5px solid var(--ink)',
+          borderRadius: 22, padding: 20, textAlign: 'center',
+          boxShadow: 'var(--shadow-card)',
+        }}>
+          <div style={{
+            display: 'inline-block', padding: 12, background: '#fff',
+            border: '2px solid var(--ink)', borderRadius: 12,
+          }}>
+            <img src={resultado.qrDataUrl} alt="QR Code PIX" width={200} height={200} />
+          </div>
+
+          <div style={{ marginTop: 14, ...D.displayCond, color: 'var(--ink)', fontSize: 14, letterSpacing: '0.08em' }}>
+            APONTE A CÂMERA DO SEU BANCO
+          </div>
+
+          <div style={{
+            marginTop: 14, padding: 10,
+            background: 'var(--cream-deep)', border: '2px dashed var(--ink)',
+            borderRadius: 10, fontFamily: 'monospace', fontSize: 11, color: 'var(--ink)',
+            wordBreak: 'break-all', lineHeight: 1.4, textAlign: 'left',
+          }}>
+            {resultado.pixString}
+          </div>
+
+          <button
+            type="button"
+            onClick={onCopiar}
+            style={{
+              marginTop: 12,
+              display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+              ...D.body, fontWeight: 600, fontSize: 14,
+              background: copiado ? 'rgba(30,168,74,0.1)' : 'transparent',
+              color: copiado ? 'var(--green-deep)' : 'var(--ink)',
+              border: `2px solid ${copiado ? 'var(--green)' : 'var(--ink)'}`,
+              borderRadius: 999, padding: '10px 18px',
+              cursor: 'pointer', width: '100%',
+              transition: 'all .15s ease',
+            }}
+          >
+            {copiado ? '✓ Código copiado!' : '📋 Copiar código PIX'}
+          </button>
+        </div>
+
+        <div style={{ marginTop: 14, ...D.body, fontSize: 12, color: 'var(--ink-soft)', textAlign: 'center', lineHeight: 1.6 }}>
+          Valor: <strong style={{ color: 'var(--ink)' }}>{formatBRL(v.valor_total)}</strong><br />
+          {desc}<br />
+          Após o pagamento, aguarde a confirmação do organizador. Guarde esta página como comprovante.
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/* ── Main ── */
+
 export default function VendaPublica() {
   const [config, setConfig] = useState({})
   const [loadingConfig, setLoadingConfig] = useState(true)
-  const [form, setForm] = useState({ nome: '', email: '', quantidade_lote_promo: 0, quantidade_lote2: 0, quantidade_mesa: 0 })
-  const [enviando, setEnviando] = useState(false)
+  const [qty, setQty] = useState({ promo: 0, lote2: 0, mesa: 0 })
+  const [form, setForm] = useState({ nome: '', email: '', telefone: '' })
+  const [step, setStep] = useState(1)
   const [resultado, setResultado] = useState(null)
+  const [enviando, setEnviando] = useState(false)
   const [erro, setErro] = useState('')
   const [copiado, setCopiado] = useState(false)
 
@@ -51,30 +674,27 @@ export default function VendaPublica() {
       .catch(() => setLoadingConfig(false))
   }, [])
 
-  const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
-
-  const limite = parseInt(config.limite_por_compra) || 4
-  const precoLotePromo = parseFloat(config.valor_lote_promo) || 0
-  const precoLote2 = parseFloat(config.valor_lote2) || 0
-  const precoMesa = parseFloat(config.valor_mesa) || 0
-  const totalQtd = form.quantidade_lote_promo + form.quantidade_lote2 + form.quantidade_mesa
-  const total = (form.quantidade_lote_promo * precoLotePromo) + (form.quantidade_lote2 * precoLote2) + (form.quantidade_mesa * precoMesa)
-
-  const submit = async (e) => {
-    e.preventDefault()
-    if (totalQtd === 0) { setErro('Selecione pelo menos 1 ingresso'); return }
+  const submit = async () => {
     setErro('')
     setEnviando(true)
     try {
       const res = await fetch('/api/tickets/venda', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form),
+        body: JSON.stringify({
+          nome: form.nome.trim(),
+          email: form.email.trim(),
+          telefone: form.telefone.trim() || undefined,
+          quantidade_lote_promo: qty.promo,
+          quantidade_lote2: qty.lote2,
+          quantidade_mesa: qty.mesa,
+        }),
       })
       const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Erro ao registrar')
+      if (!res.ok) throw new Error(data.error || 'Erro ao registrar pedido')
       const qrDataUrl = await QRCode.toDataURL(data.pixString, { width: 260, margin: 2 })
       setResultado({ ...data, qrDataUrl })
+      setStep(3)
     } catch (err) {
       setErro(err.message)
     } finally {
@@ -88,158 +708,34 @@ export default function VendaPublica() {
     setTimeout(() => setCopiado(false), 2500)
   }
 
-  const descVenda = (() => {
-    if (!resultado) return ''
-    const v = resultado.venda
-    const partes = []
-    if (v.quantidade_lote_promo > 0) partes.push(`${v.quantidade_lote_promo}x lote promo`)
-    if (v.quantidade_lote2 > 0) partes.push(`${v.quantidade_lote2}x 2º lote`)
-    if (v.quantidade_mesa > 0) partes.push(`${v.quantidade_mesa}x mesa`)
-    return partes.length ? partes.join(' + ') : `${v.quantidade}x ${v.tipo}`
-  })()
-
   if (loadingConfig) {
     return (
-      <div className="min-h-screen bg-tonha-cream flex items-center justify-center">
-        <p className="text-tonha-brown/50">Carregando...</p>
+      <div style={{ minHeight: '100dvh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--cream)' }} className="paper-bg">
+        <div style={{ ...D.body, color: 'var(--ink-soft)' }}>Carregando...</div>
       </div>
     )
   }
 
+  if (step === 1) {
+    return <StepTickets config={config} qty={qty} setQty={setQty} onAdvance={() => setStep(2)} />
+  }
+  if (step === 2) {
+    return (
+      <StepDados
+        qty={qty} config={config}
+        form={form} setForm={setForm}
+        enviando={enviando} erro={erro}
+        onBack={() => { setErro(''); setStep(1) }}
+        onSubmit={submit}
+      />
+    )
+  }
   return (
-    <div className="min-h-screen bg-tonha-cream flex flex-col">
-      <header className="bg-tonha-terra text-white text-center py-6 px-4">
-        <p className="text-sm opacity-75">🪗 Ingressos Antecipados — Venda Oficial</p>
-        <h1 className="text-2xl font-bold mt-1">Forró das Tonhas</h1>
-        <p className="text-sm opacity-60 mt-1">13 de junho de 2026 · 16h às 22h</p>
-      </header>
-
-      <div className="bg-white border-b border-tonha-sand px-4 py-3">
-        <div className="max-w-sm mx-auto space-y-1 text-center text-xs text-tonha-brown/60">
-          <p>📍 Rua 27 de Janeiro (Rua da Pitombeira), 211 — Olinda, PE</p>
-          <p>
-            <a href="https://www.instagram.com/becodoalto.olinda/" target="_blank" rel="noopener noreferrer"
-              className="text-tonha-terra hover:underline">
-              @becodoalto.olinda
-            </a>
-          </p>
-        </div>
-      </div>
-
-      <div className="flex-1 flex items-start justify-center p-4 pt-8 pb-12">
-        <div className="w-full max-w-sm">
-          {!resultado ? (
-            <div className="card">
-              <h2 className="font-semibold text-tonha-brown mb-5">Comprar ingresso</h2>
-              <form onSubmit={submit} className="space-y-4">
-                <div>
-                  <label className="label">Nome completo *</label>
-                  <input
-                    className="input"
-                    value={form.nome}
-                    onChange={e => set('nome', e.target.value)}
-                    placeholder="Seu nome"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="label">E-mail *</label>
-                  <input
-                    className="input"
-                    type="email"
-                    value={form.email}
-                    onChange={e => set('email', e.target.value)}
-                    placeholder="seu@email.com"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <label className="label mb-0">Ingressos</label>
-                    <span className="text-xs text-tonha-brown/40">máx. {limite} por pedido</span>
-                  </div>
-                  <div className="space-y-2">
-                    <Stepper
-                      label="Lote Promocional"
-                      preco={precoLotePromo}
-                      value={form.quantidade_lote_promo}
-                      onInc={() => set('quantidade_lote_promo', form.quantidade_lote_promo + 1)}
-                      onDec={() => set('quantidade_lote_promo', Math.max(0, form.quantidade_lote_promo - 1))}
-                      maxReached={totalQtd >= limite}
-                    />
-                    <Stepper
-                      label="2º Lote"
-                      preco={precoLote2}
-                      value={form.quantidade_lote2}
-                      onInc={() => set('quantidade_lote2', form.quantidade_lote2 + 1)}
-                      onDec={() => set('quantidade_lote2', Math.max(0, form.quantidade_lote2 - 1))}
-                      maxReached={totalQtd >= limite}
-                    />
-                    <Stepper
-                      label="Mesa (4 pessoas)"
-                      preco={precoMesa}
-                      value={form.quantidade_mesa}
-                      onInc={() => set('quantidade_mesa', form.quantidade_mesa + 1)}
-                      onDec={() => set('quantidade_mesa', Math.max(0, form.quantidade_mesa - 1))}
-                      maxReached={totalQtd >= limite}
-                    />
-                  </div>
-                </div>
-
-                {total > 0 && (
-                  <div className="bg-tonha-amber/20 rounded-xl px-4 py-3 text-center">
-                    <p className="text-xs text-tonha-brown/60">Total a pagar via PIX</p>
-                    <p className="text-2xl font-bold text-tonha-brown">{formatBRL(total)}</p>
-                    <p className="text-xs text-tonha-brown/40 mt-0.5">{totalQtd} ingresso{totalQtd > 1 ? 's' : ''}</p>
-                  </div>
-                )}
-
-                {erro && (
-                  <p className="text-red-500 text-sm text-center bg-red-50 rounded-xl py-2 px-3">{erro}</p>
-                )}
-                <button type="submit" disabled={enviando || totalQtd === 0} className="btn-primary w-full disabled:opacity-50">
-                  {enviando ? 'Gerando PIX...' : 'Gerar QR Code PIX'}
-                </button>
-                <p className="text-xs text-tonha-brown/40 text-center">🔒 Ambiente seguro · Pagamento PIX gerado na hora</p>
-              </form>
-            </div>
-          ) : (
-            <div className="card text-center space-y-5">
-              <div>
-                <p className="text-4xl">✅</p>
-                <h2 className="font-semibold text-tonha-brown mt-2">Pedido registrado!</h2>
-                <p className="text-sm text-tonha-brown/60 mt-1">
-                  {descVenda} · <strong>{formatBRL(resultado.venda.valor_total)}</strong>
-                </p>
-              </div>
-              <p className="text-xs text-tonha-brown/50">
-                Escaneie o QR Code ou copie o código PIX para pagar
-              </p>
-              <div className="flex justify-center">
-                <img
-                  src={resultado.qrDataUrl}
-                  alt="QR Code PIX"
-                  className="w-52 h-52 rounded-2xl border border-tonha-sand"
-                />
-              </div>
-              <button
-                onClick={copiar}
-                className={`w-full py-2.5 rounded-xl text-sm font-medium border transition-colors ${
-                  copiado
-                    ? 'bg-green-50 border-green-400 text-green-700'
-                    : 'border-tonha-terra text-tonha-terra hover:bg-tonha-terra/10'
-                }`}
-              >
-                {copiado ? '✓ Código copiado!' : 'Copiar código PIX'}
-              </button>
-              <p className="text-xs text-tonha-brown/40 leading-relaxed">
-                Após o pagamento, seu ingresso será confirmado pelo organizador. Guarde esta página como comprovante do pedido.
-              </p>
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
+    <StepPix
+      resultado={resultado}
+      copiado={copiado}
+      onCopiar={copiar}
+      onBack={() => setStep(2)}
+    />
   )
 }

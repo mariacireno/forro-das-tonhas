@@ -55,7 +55,7 @@ router.get('/vendas', (req, res) => {
 })
 
 router.post('/venda', (req, res) => {
-  const { nome, email, quantidade_lote_promo, quantidade_lote2, quantidade_mesa } = req.body
+  const { nome, email, cpf, telefone, quantidade_lote_promo, quantidade_lote2, quantidade_mesa } = req.body
   if (!nome || !email) return res.status(400).json({ error: 'Nome e email são obrigatórios' })
 
   const qtyLotePromo = parseInt(quantidade_lote_promo) || 0
@@ -78,9 +78,9 @@ router.post('/venda', (req, res) => {
 
   const id = uuidv4()
   db.prepare(`
-    INSERT INTO ticket_vendas (id, nome, email, tipo, quantidade, quantidade_lote_promo, quantidade_lote2, quantidade_mesa, valor_total, status)
-    VALUES (?, ?, ?, 'misto', ?, ?, ?, ?, ?, 'pendente')
-  `).run(id, nome, email, qtyTotal, qtyLotePromo, qtyLote2, qtyMesa, valorTotal)
+    INSERT INTO ticket_vendas (id, nome, email, cpf, telefone, tipo, quantidade, quantidade_lote_promo, quantidade_lote2, quantidade_mesa, valor_total, status)
+    VALUES (?, ?, ?, ?, ?, 'misto', ?, ?, ?, ?, ?, 'pendente')
+  `).run(id, nome, email, cpf || null, telefone || null, qtyTotal, qtyLotePromo, qtyLote2, qtyMesa, valorTotal)
 
   const pixString = buildPixPayload({
     chave: pixChave,
@@ -111,6 +111,13 @@ router.patch('/vendas/:id/confirmar', (req, res) => {
   db.prepare("INSERT INTO transactions (id, tipo, categoria, valor, descricao, data) VALUES (?, 'receita', 'ingressos', ?, ?, datetime('now'))")
     .run(uuidv4(), venda.valor_total, descIngresso)
 
+  // Cria entradas individuais de check-in por ingresso
+  const insC = db.prepare('INSERT INTO ticket_checkins (id, venda_id, tipo, nome, seq) VALUES (?, ?, ?, ?, ?)')
+  let seq = 1
+  for (let i = 0; i < (venda.quantidade_lote_promo || 0); i++) insC.run(uuidv4(), req.params.id, 'Lote Promo', venda.nome, seq++)
+  for (let i = 0; i < (venda.quantidade_lote2 || 0); i++)      insC.run(uuidv4(), req.params.id, '2º Lote',    venda.nome, seq++)
+  for (let i = 0; i < (venda.quantidade_mesa || 0) * 4; i++)   insC.run(uuidv4(), req.params.id, 'Mesa',       venda.nome, seq++)
+
   const vendaConfirmada = db.prepare('SELECT * FROM ticket_vendas WHERE id = ?').get(req.params.id)
   sendConfirmacaoIngresso(vendaConfirmada).catch(err =>
     console.error('Email de confirmação falhou:', err.message)
@@ -118,14 +125,24 @@ router.patch('/vendas/:id/confirmar', (req, res) => {
   res.json(vendaConfirmada)
 })
 
-router.patch('/vendas/:id/checkin', (req, res) => {
-  const venda = db.prepare('SELECT * FROM ticket_vendas WHERE id = ?').get(req.params.id)
-  if (!venda) return res.status(404).json({ error: 'Venda não encontrada' })
-  if (venda.status !== 'pago') return res.status(400).json({ error: 'Apenas vendas confirmadas podem fazer check-in' })
-  const novoCheckIn = venda.check_in ? 0 : 1
-  db.prepare('UPDATE ticket_vendas SET check_in = ?, check_in_at = ? WHERE id = ?')
-    .run(novoCheckIn, novoCheckIn ? new Date().toISOString() : null, req.params.id)
-  res.json(db.prepare('SELECT * FROM ticket_vendas WHERE id = ?').get(req.params.id))
+// Check-in individual por ingresso
+router.get('/checkins', (req, res) => {
+  const checkins = db.prepare(`
+    SELECT c.*, v.email
+    FROM ticket_checkins c
+    JOIN ticket_vendas v ON c.venda_id = v.id
+    ORDER BY c.nome COLLATE NOCASE, c.venda_id, c.seq
+  `).all()
+  res.json(checkins)
+})
+
+router.patch('/checkins/:id/toggle', (req, res) => {
+  const c = db.prepare('SELECT * FROM ticket_checkins WHERE id = ?').get(req.params.id)
+  if (!c) return res.status(404).json({ error: 'Ingresso não encontrado' })
+  const novo = c.check_in ? 0 : 1
+  db.prepare('UPDATE ticket_checkins SET check_in = ?, check_in_at = ? WHERE id = ?')
+    .run(novo, novo ? new Date().toISOString() : null, req.params.id)
+  res.json(db.prepare('SELECT * FROM ticket_checkins WHERE id = ?').get(req.params.id))
 })
 
 router.delete('/vendas/:id', (req, res) => {
