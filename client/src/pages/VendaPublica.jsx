@@ -115,10 +115,14 @@ export default function VendaPublica() {
       </header>
 
       <div className="bg-white border-b border-tonha-sand px-4 py-3">
-        <div className="max-w-sm mx-auto flex flex-wrap justify-center gap-4 text-xs text-tonha-brown/60">
-          <span>📍 Organizado por Renata, Maria &amp; Catarina</span>
-          <span>🔒 Pagamento 100% via PIX oficial</span>
-          <span>✅ Confirmação manual pela organização</span>
+        <div className="max-w-sm mx-auto space-y-1 text-center text-xs text-tonha-brown/60">
+          <p>📍 Rua 27 de Janeiro (Rua da Pitombeira), 211 — Olinda, PE</p>
+          <p>
+            <a href="https://www.instagram.com/becodoalto.olinda/" target="_blank" rel="noopener noreferrer"
+              className="text-tonha-terra hover:underline">
+              @becodoalto.olinda
+            </a>
+          </p>
         </div>
       </div>
 
@@ -126,11 +130,6 @@ export default function VendaPublica() {
         <div className="w-full max-w-sm">
           {!resultado ? (
             <div className="card">
-              <div className="mb-5 p-3 rounded-xl bg-tonha-amber/15 border border-tonha-amber/30 text-center">
-                <p className="text-sm font-semibold text-tonha-brown">🎉 Forró das Tonhas 2026</p>
-                <p className="text-xs text-tonha-brown/60 mt-0.5">Sábado, 13 de junho · 16h às 22h</p>
-                <p className="text-xs text-tonha-brown/50 mt-1">Ingresso antecipado com pagamento via PIX.<br/>Após confirmação do pagamento, seu ingresso estará garantido.</p>
-              </div>
               <h2 className="font-semibold text-tonha-brown mb-5">Comprar ingresso</h2>
               <form onSubmit={submit} className="space-y-4">
                 <div>
