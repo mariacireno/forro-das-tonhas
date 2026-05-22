@@ -267,21 +267,38 @@ function StepTickets({ config, qty, setQty, onAdvance }) {
         <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 0.8fr', gap: 48, padding: '24px 48px 80px', maxWidth: 1280, margin: '0 auto' }}>
 
           {/* LEFT: hero */}
-          <div style={{ position: 'relative', paddingBottom: 60 }}>
+          <div style={{ position: 'relative' }}>
             <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: 'var(--ink)', color: 'var(--cream-warm)', padding: '6px 14px', borderRadius: 999, ...D.displayCond, fontSize: 12, letterSpacing: '0.2em', marginBottom: 20 }}>
               <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--green)' }} />
               VENDA OFICIAL · INGRESSOS ANTECIPADOS
             </div>
 
-            <div style={{ ...D.display, fontSize: 148, color: 'var(--green)', WebkitTextStroke: '3px var(--ink)', paintOrder: 'stroke fill', lineHeight: 0.85, letterSpacing: '-0.025em' }}>
-              FORRÓ
+            {/* Wordmark — sol decorativo posicionado relativo a este wrapper */}
+            <div style={{ position: 'relative', paddingBottom: 16 }}>
+              <div style={{ ...D.display, fontSize: 148, color: 'var(--green)', WebkitTextStroke: '3px var(--ink)', paintOrder: 'stroke fill', lineHeight: 0.85, letterSpacing: '-0.025em' }}>
+                FORRÓ
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 20, margin: '10px 0' }}>
+                <span style={{ ...D.display, fontSize: 52, color: 'var(--ink)' }}>DAS</span>
+                <Sparkle size={40} fill="var(--indigo)" />
+              </div>
+              <div style={{ ...D.display, fontSize: 148, color: 'var(--green)', WebkitTextStroke: '3px var(--ink)', paintOrder: 'stroke fill', lineHeight: 0.85, letterSpacing: '-0.025em' }}>
+                TONHAS
+              </div>
+              {/* Sol no canto inferior esquerdo do wordmark */}
+              <div style={{ position: 'absolute', left: -30, bottom: -20, opacity: 0.8, zIndex: 0, pointerEvents: 'none' }}>
+                <SunRays size={160} fill="var(--yellow)" />
+              </div>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 20, margin: '10px 0' }}>
-              <span style={{ ...D.display, fontSize: 52, color: 'var(--ink)' }}>DAS</span>
-              <Sparkle size={40} fill="var(--indigo)" />
-            </div>
-            <div style={{ ...D.display, fontSize: 148, color: 'var(--green)', WebkitTextStroke: '3px var(--ink)', paintOrder: 'stroke fill', lineHeight: 0.85, letterSpacing: '-0.025em' }}>
-              TONHAS
+
+            {/* Match line */}
+            <div style={{ marginTop: 18, display: 'flex', alignItems: 'center', gap: 14 }}>
+              <span style={{ ...D.displayCond, fontSize: 34, color: 'var(--indigo)' }}>BRASIL</span>
+              <Sparkle size={22} fill="var(--yellow)" />
+              <span style={{ ...D.displayCond, fontSize: 34, color: 'var(--indigo)' }}>MARROCOS</span>
+              <span style={{ ...D.body, fontSize: 12, color: 'var(--ink-soft)', marginLeft: 6, lineHeight: 1.4 }}>
+                quinteto pé de serra<br />transmissão ao vivo
+              </span>
             </div>
 
             {/* Date strip */}
@@ -305,11 +322,6 @@ function StepTickets({ config, qty, setQty, onAdvance }) {
             </div>
             <div style={{ marginTop: 10, ...D.body, fontSize: 13, color: 'var(--ink-soft)', lineHeight: 1.5 }}>
               Rua 27 de Janeiro (Rua da Pitombeira), 211 · Sítio Histórico · Olinda · PE
-            </div>
-
-            {/* Decorative sun */}
-            <div style={{ position: 'absolute', left: -30, bottom: -10, opacity: 0.8 }}>
-              <SunRays size={160} fill="var(--yellow)" />
             </div>
           </div>
 
@@ -400,6 +412,16 @@ function StepTickets({ config, qty, setQty, onAdvance }) {
         <div style={{ display: 'flex', justifyContent: 'center', marginTop: -4, position: 'relative', minHeight: 160 }}>
           <Sanfona width={170} color="var(--indigo)" />
           <div style={{ position: 'absolute', left: 6, bottom: -10 }}><SunRays size={90} fill="var(--yellow)" /></div>
+        </div>
+
+        {/* Match line */}
+        <div style={{ marginTop: 10, textAlign: 'center', padding: '0 16px' }}>
+          <div style={{ ...D.display, fontSize: 22, color: 'var(--green)', WebkitTextStroke: '1px var(--ink)', paintOrder: 'stroke fill' }}>
+            BRASIL × MARROCOS
+          </div>
+          <div style={{ ...D.displayCond, fontSize: 12, color: 'var(--indigo)', letterSpacing: '0.15em', marginTop: 2 }}>
+            QUINTETO PÉ DE SERRA · TRANSMISSÃO AO VIVO
+          </div>
         </div>
 
         <div style={{ margin: '18px 20px 0', background: 'var(--ink)', color: 'var(--cream-warm)', borderRadius: 16, padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 14, position: 'relative' }}>
