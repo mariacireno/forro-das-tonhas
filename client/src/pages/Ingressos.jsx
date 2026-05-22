@@ -204,8 +204,12 @@ function VendasOnline() {
           <ul className="divide-y divide-tonha-sand">
             {vendas.map(v => (
               <li key={v.id} className="py-3 flex items-start gap-3">
-                <span className={`badge mt-0.5 shrink-0 ${v.status === 'pago' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
-                  {v.status === 'pago' ? '✅ pago' : '⏳ pendente'}
+                <span className={`badge mt-0.5 shrink-0 ${
+                  v.status === 'pago' ? 'bg-green-100 text-green-700' :
+                  v.status === 'cancelado' ? 'bg-gray-100 text-gray-500' :
+                  'bg-amber-100 text-amber-700'
+                }`}>
+                  {v.status === 'pago' ? '✅ pago' : v.status === 'cancelado' ? '✕ cancelado' : '⏳ pendente'}
                 </span>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-tonha-brown truncate">{v.nome}</p>

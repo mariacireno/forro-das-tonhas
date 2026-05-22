@@ -767,6 +767,23 @@ export default function VendaPublica() {
       .catch(() => setLoadingConfig(false))
   }, [])
 
+  // Sincroniza botão Voltar do browser com os steps
+  useEffect(() => {
+    window.history.replaceState({ step: 1 }, '')
+  }, [])
+
+  useEffect(() => {
+    const onPop = (e) => {
+      const s = e.state?.step ?? 1
+      if (s < step) {
+        setErro('')
+        setStep(s)
+      }
+    }
+    window.addEventListener('popstate', onPop)
+    return () => window.removeEventListener('popstate', onPop)
+  }, [step])
+
   useEffect(() => {
     if (step !== 3 || !resultado || confirmado) return
     const poll = async () => {
@@ -781,6 +798,11 @@ export default function VendaPublica() {
     const id = setInterval(poll, 15000)
     return () => clearInterval(id)
   }, [step, resultado, confirmado])
+
+  const goTo = (s) => {
+    window.history.pushState({ step: s }, '')
+    setStep(s)
+  }
 
   const submit = async () => {
     setErro('')
@@ -802,7 +824,7 @@ export default function VendaPublica() {
       if (!res.ok) throw new Error(data.error || 'Erro ao registrar pedido')
       const qrDataUrl = await QRCode.toDataURL(data.pixString, { width: 260, margin: 2 })
       setResultado({ ...data, qrDataUrl })
-      setStep(3)
+      goTo(3)
     } catch (err) {
       setErro(err.message)
     } finally {
@@ -825,7 +847,7 @@ export default function VendaPublica() {
   }
 
   if (step === 1) {
-    return <StepTickets config={config} qty={qty} setQty={setQty} onAdvance={() => setStep(2)} />
+    return <StepTickets config={config} qty={qty} setQty={setQty} onAdvance={() => goTo(2)} />
   }
   if (step === 2) {
     return (
@@ -833,7 +855,7 @@ export default function VendaPublica() {
         qty={qty} config={config}
         form={form} setForm={setForm}
         enviando={enviando} erro={erro}
-        onBack={() => { setErro(''); setStep(1) }}
+        onBack={() => { setErro(''); goTo(1) }}
         onSubmit={submit}
       />
     )
