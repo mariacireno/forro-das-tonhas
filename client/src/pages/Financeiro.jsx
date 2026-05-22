@@ -285,7 +285,12 @@ export default function Financeiro() {
 
   // Transações reais
   const handleSaveTransaction = async (data) => {
-    await api.createTransaction(data)
+    if (editItem) {
+      await api.updateTransaction(editItem.id, data)
+      setEditItem(null)
+    } else {
+      await api.createTransaction(data)
+    }
     setShowModal(false)
     load()
   }
@@ -293,6 +298,10 @@ export default function Financeiro() {
     if (!confirm('Remover este lançamento?')) return
     await api.deleteTransaction(id)
     load()
+  }
+  const handleEditTransaction = (item) => {
+    setEditItem(item)
+    setShowModal(true)
   }
 
   // Orçamentos
@@ -368,7 +377,7 @@ export default function Financeiro() {
               <h2 className="font-semibold text-tonha-brown">Lançamentos</h2>
               <FiltroTipo value={filterTipo} onChange={setFilterTipo} />
             </div>
-            <ListaItens items={filteredTransactions} onDelete={handleDeleteTransaction} showData />
+            <ListaItens items={filteredTransactions} onDelete={handleDeleteTransaction} onEdit={handleEditTransaction} showData />
           </div>
         </>
       )}
@@ -410,7 +419,7 @@ export default function Financeiro() {
       {/* Modal */}
       {showModal && (
         <Modal
-          title={isOrcamento ? (editItem ? 'Editar orçamento' : 'Novo orçamento') : 'Novo lançamento'}
+          title={isOrcamento ? (editItem ? 'Editar orçamento' : 'Novo orçamento') : (editItem ? 'Editar lançamento' : 'Novo lançamento')}
           onClose={() => { setShowModal(false); setEditItem(null) }}
         >
           <LancamentoForm

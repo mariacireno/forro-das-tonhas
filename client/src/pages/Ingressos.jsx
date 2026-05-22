@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Plus, Trash2, Ticket, Banknote, Settings, ChevronDown, Check, X } from 'lucide-react'
+import { Plus, Trash2, Ticket, Banknote, Settings, ChevronDown, Check, X, UserCheck, Search } from 'lucide-react'
 import { api } from '../api'
 import Modal from '../components/Modal'
 import { formatBRL, formatDate } from '../utils/format'
@@ -249,6 +249,108 @@ function VendasOnline() {
   )
 }
 
+function CheckIn() {
+  const [vendas, setVendas] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [busca, setBusca] = useState('')
+
+  const load = () =>
+    api.getVendas()
+      .then(v => setVendas(v.filter(x => x.status === 'pago')))
+      .finally(() => setLoading(false))
+
+  useEffect(() => {
+    load()
+    const id = setInterval(load, 20000)
+    return () => clearInterval(id)
+  }, [])
+
+  const checkin = async (id) => {
+    await api.checkInVenda(id)
+    load()
+  }
+
+  const qtdDesc = (v) => {
+    const partes = []
+    if (v.quantidade_inteira > 0) partes.push(`${v.quantidade_inteira}x inteira`)
+    if (v.quantidade_meia > 0) partes.push(`${v.quantidade_meia}x meia`)
+    return partes.length ? partes.join(' + ') : `${v.quantidade}x ${v.tipo}`
+  }
+
+  const totalPessoas = vendas.reduce((s, v) => s + (v.quantidade || (v.quantidade_inteira + v.quantidade_meia) || 1), 0)
+  const chegaram = vendas.filter(v => v.check_in)
+  const chegouPessoas = chegaram.reduce((s, v) => s + (v.quantidade || (v.quantidade_inteira + v.quantidade_meia) || 1), 0)
+
+  const filtradas = busca
+    ? vendas.filter(v => v.nome.toLowerCase().includes(busca.toLowerCase()) || v.email.toLowerCase().includes(busca.toLowerCase()))
+    : vendas
+
+  if (loading) return <div className="text-tonha-brown/50 py-6 text-center">Carregando...</div>
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-3 gap-3">
+        <div className="card text-center py-3">
+          <p className="text-2xl font-bold text-green-600">{chegouPessoas}</p>
+          <p className="text-xs text-tonha-brown/50">entraram</p>
+        </div>
+        <div className="card text-center py-3">
+          <p className="text-2xl font-bold text-tonha-brown">{totalPessoas}</p>
+          <p className="text-xs text-tonha-brown/50">aguardados</p>
+        </div>
+        <div className="card text-center py-3">
+          <p className="text-2xl font-bold text-tonha-terra">{vendas.length - chegaram.length}</p>
+          <p className="text-xs text-tonha-brown/50">pendentes</p>
+        </div>
+      </div>
+
+      <div className="relative">
+        <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-tonha-brown/30" />
+        <input
+          className="input pl-8"
+          placeholder="Buscar por nome ou e-mail..."
+          value={busca}
+          onChange={e => setBusca(e.target.value)}
+        />
+      </div>
+
+      <div className="card">
+        {vendas.length === 0 ? (
+          <p className="text-center text-tonha-brown/50 py-8">Nenhum ingresso confirmado ainda.</p>
+        ) : filtradas.length === 0 ? (
+          <p className="text-center text-tonha-brown/50 py-6">Nenhum resultado para "{busca}".</p>
+        ) : (
+          <ul className="divide-y divide-tonha-sand">
+            {filtradas.map(v => (
+              <li key={v.id} className={`flex items-center gap-3 py-3 transition-opacity ${v.check_in ? 'opacity-60' : ''}`}>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-tonha-brown truncate">{v.nome}</p>
+                  <p className="text-xs text-tonha-brown/50">{qtdDesc(v)}</p>
+                  {v.check_in && v.check_in_at && (
+                    <p className="text-xs text-green-600">
+                      Entrou às {new Date(v.check_in_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                    </p>
+                  )}
+                </div>
+                <button
+                  onClick={() => checkin(v.id)}
+                  className={`shrink-0 px-3 py-1.5 rounded-xl text-xs font-medium border transition-colors ${
+                    v.check_in
+                      ? 'bg-green-50 border-green-300 text-green-700'
+                      : 'border-tonha-terra text-tonha-terra hover:bg-tonha-terra/10'
+                  }`}
+                >
+                  {v.check_in ? '✓ Entrou' : 'Confirmar entrada'}
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </div>
+  )
+}
+
 export default function Ingressos() {
   const [aba, setAba] = useState('portaria')
   const [tickets, setTickets] = useState([])
@@ -292,6 +394,7 @@ export default function Ingressos() {
         {[
           { key: 'portaria', label: 'Portaria' },
           { key: 'online', label: 'Vendas Online' },
+          { key: 'checkin', label: 'Check-in' },
         ].map(tab => (
           <button key={tab.key} onClick={() => setAba(tab.key)}
             className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors ${
@@ -387,8 +490,10 @@ export default function Ingressos() {
             </Modal>
           )}
         </>
-      ) : (
+      ) : aba === 'online' ? (
         <VendasOnline />
+      ) : (
+        <CheckIn />
       )}
     </div>
   )

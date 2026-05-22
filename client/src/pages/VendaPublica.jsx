@@ -107,15 +107,28 @@ export default function VendaPublica() {
   return (
     <div className="min-h-screen bg-tonha-cream flex flex-col">
       <header className="bg-tonha-terra text-white text-center py-6 px-4">
-        <p className="text-sm opacity-75">🪗 Ingressos Antecipados</p>
+        <p className="text-sm opacity-75">🪗 Ingressos Antecipados — Venda Oficial</p>
         <h1 className="text-2xl font-bold mt-1">Forró das Tonhas</h1>
-        <p className="text-sm opacity-60 mt-1">13 de junho · 16h às 22h</p>
+        <p className="text-sm opacity-60 mt-1">13 de junho de 2026 · 16h às 22h</p>
       </header>
+
+      <div className="bg-white border-b border-tonha-sand px-4 py-3">
+        <div className="max-w-sm mx-auto flex flex-wrap justify-center gap-4 text-xs text-tonha-brown/60">
+          <span>📍 Organizado por Renata, Maria &amp; Catarina</span>
+          <span>🔒 Pagamento 100% via PIX oficial</span>
+          <span>✅ Confirmação manual pela organização</span>
+        </div>
+      </div>
 
       <div className="flex-1 flex items-start justify-center p-4 pt-8 pb-12">
         <div className="w-full max-w-sm">
           {!resultado ? (
             <div className="card">
+              <div className="mb-5 p-3 rounded-xl bg-tonha-amber/15 border border-tonha-amber/30 text-center">
+                <p className="text-sm font-semibold text-tonha-brown">🎉 Forró das Tonhas 2026</p>
+                <p className="text-xs text-tonha-brown/60 mt-0.5">Sábado, 13 de junho · 16h às 22h</p>
+                <p className="text-xs text-tonha-brown/50 mt-1">Ingresso antecipado com pagamento via PIX.<br/>Após confirmação do pagamento, seu ingresso estará garantido.</p>
+              </div>
               <h2 className="font-semibold text-tonha-brown mb-5">Comprar ingresso</h2>
               <form onSubmit={submit} className="space-y-4">
                 <div>
@@ -179,6 +192,7 @@ export default function VendaPublica() {
                 <button type="submit" disabled={enviando || totalQtd === 0} className="btn-primary w-full disabled:opacity-50">
                   {enviando ? 'Gerando PIX...' : 'Gerar QR Code PIX'}
                 </button>
+                <p className="text-xs text-tonha-brown/40 text-center">🔒 Ambiente seguro · Pagamento PIX gerado na hora</p>
               </form>
             </div>
           ) : (

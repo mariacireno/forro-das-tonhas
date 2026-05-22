@@ -26,6 +26,17 @@ router.post('/', (req, res) => {
   res.status(201).json(db.prepare('SELECT * FROM transactions WHERE id = ?').get(id));
 });
 
+router.put('/:id', (req, res) => {
+  const { tipo, categoria, valor, descricao, data, pago_por } = req.body;
+  if (!tipo || !valor) return res.status(400).json({ error: 'Tipo e valor obrigatórios' });
+  const pagador = tipo === 'custo' && SOCIAS.includes(pago_por) ? pago_por : null;
+  const result = db.prepare(`
+    UPDATE transactions SET tipo=?, categoria=?, valor=?, descricao=?, data=?, pago_por=? WHERE id=?
+  `).run(tipo, categoria || 'outros', parseFloat(valor), descricao || null, data || null, pagador, req.params.id);
+  if (result.changes === 0) return res.status(404).json({ error: 'Transação não encontrada' });
+  res.json(db.prepare('SELECT * FROM transactions WHERE id = ?').get(req.params.id));
+});
+
 router.delete('/:id', (req, res) => {
   const result = db.prepare('DELETE FROM transactions WHERE id = ?').run(req.params.id);
   if (result.changes === 0) return res.status(404).json({ error: 'Transação não encontrada' });

@@ -108,6 +108,16 @@ router.patch('/vendas/:id/confirmar', (req, res) => {
   res.json(db.prepare('SELECT * FROM ticket_vendas WHERE id = ?').get(req.params.id))
 })
 
+router.patch('/vendas/:id/checkin', (req, res) => {
+  const venda = db.prepare('SELECT * FROM ticket_vendas WHERE id = ?').get(req.params.id)
+  if (!venda) return res.status(404).json({ error: 'Venda não encontrada' })
+  if (venda.status !== 'pago') return res.status(400).json({ error: 'Apenas vendas confirmadas podem fazer check-in' })
+  const novoCheckIn = venda.check_in ? 0 : 1
+  db.prepare('UPDATE ticket_vendas SET check_in = ?, check_in_at = ? WHERE id = ?')
+    .run(novoCheckIn, novoCheckIn ? new Date().toISOString() : null, req.params.id)
+  res.json(db.prepare('SELECT * FROM ticket_vendas WHERE id = ?').get(req.params.id))
+})
+
 router.delete('/vendas/:id', (req, res) => {
   const venda = db.prepare('SELECT * FROM ticket_vendas WHERE id = ?').get(req.params.id)
   if (!venda) return res.status(404).json({ error: 'Venda não encontrada' })

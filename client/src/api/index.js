@@ -54,4 +54,8 @@ export const api = {
   createVenda: (data) => req('/tickets/venda', { method: 'POST', body: JSON.stringify(data) }),
   confirmarVenda: (id) => req(`/tickets/vendas/${id}/confirmar`, { method: 'PATCH' }),
   deleteVenda: (id) => req(`/tickets/vendas/${id}`, { method: 'DELETE' }),
+  checkInVenda: (id) => req(`/tickets/vendas/${id}/checkin`, { method: 'PATCH' }),
+
+  // Transactions
+  updateTransaction: (id, data) => req(`/transactions/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
 }

@@ -82,6 +82,8 @@ try { db.exec("ALTER TABLE ticket_vendas ADD COLUMN valor_total REAL DEFAULT 0")
 try { db.exec("ALTER TABLE ticket_vendas ADD COLUMN status TEXT DEFAULT 'pendente'") } catch (_) {}
 try { db.exec("ALTER TABLE ticket_vendas ADD COLUMN quantidade_inteira INTEGER DEFAULT 0") } catch (_) {}
 try { db.exec("ALTER TABLE ticket_vendas ADD COLUMN quantidade_meia INTEGER DEFAULT 0") } catch (_) {}
+try { db.exec("ALTER TABLE ticket_vendas ADD COLUMN check_in INTEGER DEFAULT 0") } catch (_) {}
+try { db.exec("ALTER TABLE ticket_vendas ADD COLUMN check_in_at TEXT") } catch (_) {}
 
 // Seeds de config padrão
 const seedConfig = db.prepare('INSERT OR IGNORE INTO config (chave, valor) VALUES (?, ?)')
