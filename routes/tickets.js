@@ -4,6 +4,7 @@ const { v4: uuidv4 } = require('uuid')
 const db = require('../database')
 const { buildPixPayload } = require('../utils/pix')
 const { sendConfirmacaoIngresso, sendNotificacaoNovaVenda } = require('../utils/email')
+const { buildTicketPdf } = require('../utils/pdf')
 
 // --- helpers ---
 const getConf = (k) => db.prepare('SELECT valor FROM config WHERE chave = ?').get(k)?.valor ?? ''
@@ -119,6 +120,23 @@ router.post('/venda', (req, res) => {
   )
 
   res.status(201).json({ venda: vendaCriada, pixString })
+})
+
+router.get('/vendas/:id/pdf', async (req, res) => {
+  const venda = db.prepare('SELECT * FROM ticket_vendas WHERE id = ?').get(req.params.id)
+  if (!venda) return res.status(404).json({ error: 'Venda não encontrada' })
+  if (venda.status !== 'pago') return res.status(400).json({ error: 'Ingresso ainda não confirmado' })
+  const checkins = db.prepare('SELECT * FROM ticket_checkins WHERE venda_id = ? ORDER BY seq').all(req.params.id)
+  try {
+    const pdfBuffer = await buildTicketPdf(venda, checkins)
+    const filename = `ingresso-forro-das-tonhas-${venda.nome.replace(/\s+/g, '-').toLowerCase()}.pdf`
+    res.setHeader('Content-Type', 'application/pdf')
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`)
+    res.send(pdfBuffer)
+  } catch (err) {
+    console.error('Erro ao gerar PDF do ingresso:', err.message)
+    res.status(500).json({ error: 'Erro ao gerar PDF' })
+  }
 })
 
 router.patch('/vendas/:id/confirmar', (req, res) => {

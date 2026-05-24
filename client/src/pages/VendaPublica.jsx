@@ -50,7 +50,7 @@ function StepProgress({ step }) {
   )
 }
 
-function TicketRow({ id, name, price, unit, badge, qty, onChange, maxReached, esgotado }) {
+function TicketRow({ id, name, price, unit, badge, qty, onChange, maxReached, esgotado, description }) {
   const active = qty > 0 && !esgotado
   const color = id === 'mesa' ? 'var(--red)' : id === 'lote2' ? 'var(--indigo)' : 'var(--green)'
   const icon = id === 'mesa' ? '🪑' : '🎟'
@@ -103,6 +103,11 @@ function TicketRow({ id, name, price, unit, badge, qty, onChange, maxReached, es
           </span>
           <span style={{ ...D.body, fontSize: 11, color: 'var(--ink-soft)' }}>{unit}</span>
         </div>
+        {description && (
+          <div style={{ ...D.body, fontSize: 11, color: 'var(--ink-soft)', marginTop: 2 }}>
+            {description}
+          </div>
+        )}
       </div>
 
       {/* Stepper */}
@@ -240,7 +245,7 @@ function StepTickets({ config, qty, setQty, onAdvance }) {
   const TICKETS = [
     { id: 'promo', name: 'Lote Promocional', price: precos.promo, unit: '/ unid.', badge: null },
     { id: 'lote2', name: '2º Lote',          price: precos.lote2, unit: '/ unid.', badge: null },
-    { id: 'mesa',  name: 'Mesa para 4',       price: precos.mesa,  unit: '/ mesa',  badge: null },
+    { id: 'mesa',  name: 'Mesa para 4',       price: precos.mesa,  unit: '/ mesa',  badge: null, description: '+4 bebidas inclusas: Heineken ou Batijá' },
   ]
 
   const ticketRows = TICKETS.map(t => (
