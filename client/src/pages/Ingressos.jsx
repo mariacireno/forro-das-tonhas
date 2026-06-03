@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Plus, Trash2, Ticket, Banknote, Settings, ChevronDown, Check, X, Search, ScanLine } from 'lucide-react'
+import { Plus, Trash2, Ticket, Banknote, Settings, ChevronDown, Check, X, Search, ScanLine, Download } from 'lucide-react'
 import { api } from '../api'
 import Modal from '../components/Modal'
 import { formatBRL, formatDate } from '../utils/format'
@@ -498,6 +498,20 @@ export default function Ingressos() {
     load()
   }
 
+  const handleDownloadPdf = async (id) => {
+    try {
+      const blob = await api.getPortariaPdf(id)
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `ingressos-portaria-${id.slice(0, 8)}.pdf`
+      a.click()
+      URL.revokeObjectURL(url)
+    } catch (err) {
+      alert(err.message)
+    }
+  }
+
 
   return (
     <div className="space-y-5">
@@ -558,6 +572,9 @@ export default function Ingressos() {
                           <p className="text-xs text-tonha-brown/50">{formatDate(t.data)}</p>
                         </div>
                         <p className="font-semibold text-green-600 text-sm">{formatBRL(t.quantidade * t.valor_unitario)}</p>
+                        <button onClick={() => handleDownloadPdf(t.id)} title="Baixar PDF com QR codes" className="text-tonha-brown/30 hover:text-tonha-terra transition-colors p-1">
+                          <Download size={14} />
+                        </button>
                         <button onClick={() => handleDelete(t.id)} className="text-tonha-brown/30 hover:text-red-400 transition-colors p-1">
                           <Trash2 size={14} />
                         </button>

@@ -7,6 +7,7 @@ const TIPO_LABEL = {
   'Mesa':       'Mesa — 4 pessoas',
   'Inteira':    'Inteira',
   'Meia':       'Meia-entrada',
+  'portaria':   'Portaria',
 }
 
 function brl(v) {

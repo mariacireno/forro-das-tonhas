@@ -31,6 +31,12 @@ export const api = {
   createTicket: (data) => req('/tickets', { method: 'POST', body: JSON.stringify(data) }),
   deleteTicket: (id) => req(`/tickets/${id}`, { method: 'DELETE' }),
   getTicketSummary: () => req('/tickets/summary'),
+  getPortariaPdf: async (id) => {
+    const pwd = sessionStorage.getItem('adminPwd') || ''
+    const res = await fetch(`/api/tickets/${id}/pdf`, { headers: { 'x-admin-password': pwd } })
+    if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.error || 'Erro ao gerar PDF') }
+    return res.blob()
+  },
 
   // Orçamentos
   getOrcamentos: () => req('/orcamentos'),

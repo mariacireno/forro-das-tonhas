@@ -39,7 +39,28 @@ router.post('/', (req, res) => {
   db.prepare("INSERT INTO transactions (id, tipo, categoria, valor, descricao, data) VALUES (?, 'receita', 'ingressos', ?, ?, ?)")
     .run(uuidv4(), total, `${qty}x ingresso ${tipo} (${canal || 'portaria'})`, data || null)
 
+  const insC = db.prepare('INSERT INTO ticket_checkins (id, venda_id, tipo, nome, seq) VALUES (?, ?, ?, ?, ?)')
+  for (let i = 0; i < qty; i++) insC.run(uuidv4(), id, tipo, 'Portaria', i + 1)
+
   res.status(201).json(db.prepare('SELECT * FROM tickets WHERE id = ?').get(id))
+})
+
+router.get('/:id/pdf', async (req, res) => {
+  const ticket = db.prepare('SELECT * FROM tickets WHERE id = ?').get(req.params.id)
+  if (!ticket) return res.status(404).json({ error: 'Ticket não encontrado' })
+  const checkins = db.prepare('SELECT * FROM ticket_checkins WHERE venda_id = ? ORDER BY seq').all(req.params.id)
+  if (!checkins.length) return res.status(400).json({ error: 'Nenhum QR code gerado para este ingresso' })
+  try {
+    const venda = { nome: 'Portaria', valor_total: ticket.quantidade * ticket.valor_unitario }
+    const pdfBuffer = await buildTicketPdf(venda, checkins)
+    const filename = `ingressos-portaria-${ticket.id.slice(0, 8)}.pdf`
+    res.setHeader('Content-Type', 'application/pdf')
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`)
+    res.send(pdfBuffer)
+  } catch (err) {
+    console.error('Erro ao gerar PDF de portaria:', err.message)
+    res.status(500).json({ error: 'Erro ao gerar PDF' })
+  }
 })
 
 router.delete('/:id', (req, res) => {
