@@ -48,8 +48,12 @@ router.post('/', (req, res) => {
 router.get('/:id/pdf', async (req, res) => {
   const ticket = db.prepare('SELECT * FROM tickets WHERE id = ?').get(req.params.id)
   if (!ticket) return res.status(404).json({ error: 'Ticket não encontrado' })
-  const checkins = db.prepare('SELECT * FROM ticket_checkins WHERE venda_id = ? ORDER BY seq').all(req.params.id)
-  if (!checkins.length) return res.status(400).json({ error: 'Nenhum QR code gerado para este ingresso' })
+  let checkins = db.prepare('SELECT * FROM ticket_checkins WHERE venda_id = ? ORDER BY seq').all(req.params.id)
+  if (!checkins.length) {
+    const insC = db.prepare('INSERT INTO ticket_checkins (id, venda_id, tipo, nome, seq) VALUES (?, ?, ?, ?, ?)')
+    for (let i = 0; i < ticket.quantidade; i++) insC.run(uuidv4(), ticket.id, ticket.tipo, 'Portaria', i + 1)
+    checkins = db.prepare('SELECT * FROM ticket_checkins WHERE venda_id = ? ORDER BY seq').all(req.params.id)
+  }
   try {
     const venda = { nome: 'Portaria', valor_total: ticket.quantidade * ticket.valor_unitario }
     const pdfBuffer = await buildTicketPdf(venda, checkins)
