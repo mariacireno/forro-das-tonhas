@@ -121,13 +121,25 @@ function VendasOnline() {
   const [vendas, setVendas] = useState([])
   const [loading, setLoading] = useState(true)
   const [showConfig, setShowConfig] = useState(false)
+  const [vendasAtivas, setVendasAtivas] = useState(true)
+  const [togglingVendas, setTogglingVendas] = useState(false)
 
   const load = () => api.getVendas().then(v => setVendas(v)).finally(() => setLoading(false))
   useEffect(() => {
     load()
+    api.getConfig().then(c => setVendasAtivas(c.vendas_ativas !== '0'))
     const id = setInterval(load, 20000)
     return () => clearInterval(id)
   }, [])
+
+  const toggleVendas = async () => {
+    const novoValor = vendasAtivas ? '0' : '1'
+    if (!confirm(vendasAtivas ? 'Suspender as vendas no site?' : 'Reativar as vendas no site?')) return
+    setTogglingVendas(true)
+    await api.updateConfig('vendas_ativas', novoValor)
+    setVendasAtivas(!vendasAtivas)
+    setTogglingVendas(false)
+  }
 
   const confirmar = async (id) => {
     if (!confirm('Confirmar pagamento desta venda?')) return
@@ -171,6 +183,29 @@ function VendasOnline() {
           <p className="text-lg font-bold text-tonha-brown">{formatBRL(totalConfirmado)}</p>
           <p className="text-xs text-tonha-brown/50">confirmado</p>
         </div>
+      </div>
+
+      {/* Toggle vendas */}
+      <div className={`card flex items-center justify-between gap-4 ${vendasAtivas ? 'bg-green-50' : 'bg-red-50'}`}>
+        <div>
+          <p className={`font-semibold text-sm ${vendasAtivas ? 'text-green-700' : 'text-red-700'}`}>
+            {vendasAtivas ? 'Vendas ativas' : 'Vendas suspensas'}
+          </p>
+          <p className="text-xs text-tonha-brown/50 mt-0.5">
+            {vendasAtivas ? 'Clientes podem comprar no site.' : 'Nenhuma nova compra é aceita.'}
+          </p>
+        </div>
+        <button
+          onClick={toggleVendas}
+          disabled={togglingVendas}
+          className={`shrink-0 px-4 py-2 rounded-xl text-sm font-medium border transition-colors ${
+            vendasAtivas
+              ? 'border-red-300 text-red-600 hover:bg-red-100'
+              : 'border-green-400 text-green-700 hover:bg-green-100'
+          }`}
+        >
+          {togglingVendas ? '...' : vendasAtivas ? 'Suspender' : 'Reativar'}
+        </button>
       </div>
 
       {/* Link público */}

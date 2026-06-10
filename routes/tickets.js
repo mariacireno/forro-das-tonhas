@@ -87,6 +87,9 @@ router.get('/vendas/:id', (req, res) => {
 })
 
 router.post('/venda', (req, res) => {
+  if (getConf('vendas_ativas') === '0')
+    return res.status(503).json({ error: 'Vendas temporariamente suspensas.' })
+
   const { nome, email, cpf, telefone, quantidade_lote_promo, quantidade_lote2, quantidade_mesa } = req.body
   if (!nome || !email) return res.status(400).json({ error: 'Nome e email são obrigatórios' })
 

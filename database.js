@@ -136,6 +136,7 @@ const seedConfig = db.prepare('INSERT OR IGNORE INTO config (chave, valor) VALUE
   ['estoque_lote_promo', '0'],
   ['estoque_lote2', '0'],
   ['estoque_mesa', '0'],
+  ['vendas_ativas', '0'],
 ].forEach(([k, v]) => seedConfig.run(k, v))
 
 module.exports = db;

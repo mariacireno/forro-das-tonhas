@@ -851,6 +851,32 @@ export default function VendaPublica() {
     )
   }
 
+  if (config.vendas_ativas === '0') {
+    return (
+      <div style={{ minHeight: '100dvh', background: 'var(--cream)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '32px 24px', textAlign: 'center' }} className="paper-bg">
+        <div style={{ height: 70, width: '100%', position: 'absolute', top: 0 }}>
+          <Bandeirinhas count={8} height={70} />
+        </div>
+        <Sanfona width={100} color="var(--indigo)" />
+        <div style={{ ...D.display, fontSize: 52, color: 'var(--ink)', lineHeight: 0.9, marginTop: 20 }}>
+          FORRÓ<br />DAS TONHAS
+        </div>
+        <div style={{ marginTop: 28, background: 'var(--ink)', color: 'var(--cream-warm)', borderRadius: 18, padding: '20px 28px', maxWidth: 340, width: '100%' }}>
+          <div style={{ fontSize: 36 }}>⏸</div>
+          <div style={{ ...D.displayCond, fontSize: 22, marginTop: 8, letterSpacing: '0.06em' }}>
+            VENDAS PAUSADAS
+          </div>
+          <div style={{ ...D.body, fontSize: 14, opacity: 0.75, marginTop: 10, lineHeight: 1.6 }}>
+            As vendas online estão temporariamente suspensas. Em breve as vendas serão reabertas.
+          </div>
+        </div>
+        <div style={{ marginTop: 20, ...D.displayCond, fontSize: 14, color: 'var(--indigo)', letterSpacing: '0.1em' }}>
+          13 JUN 2026 · OLINDA, PE
+        </div>
+      </div>
+    )
+  }
+
   if (step === 1) {
     return <StepTickets config={config} qty={qty} setQty={setQty} onAdvance={() => goTo(2)} />
   }
