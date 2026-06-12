@@ -26,6 +26,10 @@ router.get('/', (req, res) => {
   config.disponivel_lote2      = estoque.lote2 > 0 ? String(Math.max(0, estoque.lote2 - vendidos.lote2)) : null
   config.disponivel_mesa       = estoque.mesa  > 0 ? String(Math.max(0, estoque.mesa  - vendidos.mesa))  : null
 
+  const totalCheckins = db.prepare('SELECT COUNT(*) AS n FROM ticket_checkins').get().n
+  const limiteCortesia = parseInt(config.limite_cortesia) || 60
+  config.disponivel_cortesia = String(Math.max(0, limiteCortesia - totalCheckins))
+
   res.json(config)
 })
 

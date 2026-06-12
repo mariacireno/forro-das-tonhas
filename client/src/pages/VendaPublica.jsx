@@ -1,5 +1,4 @@
 import { useState, useEffect, Fragment } from 'react'
-import QRCode from 'qrcode'
 import { formatBRL } from '../utils/format'
 import { Bandeirinhas, Star, Sparkle, SunRays, Sanfona } from '../components/Decor'
 
@@ -15,7 +14,7 @@ function StepProgress({ step }) {
   const steps = [
     { n: '01', label: 'Ingressos' },
     { n: '02', label: 'Seus dados' },
-    { n: '03', label: 'Pagar' },
+    { n: '03', label: 'Confirmar' },
   ]
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 22 }}>
@@ -98,8 +97,8 @@ function TicketRow({ id, name, price, unit, badge, qty, onChange, maxReached, es
           )}
         </div>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
-          <span style={{ ...D.display, fontSize: 22, color: price > 0 ? 'var(--green-deep)' : 'var(--ink-soft)' }}>
-            {price > 0 ? formatBRL(price) : '–'}
+          <span style={{ ...D.display, fontSize: 22, color: price > 0 ? 'var(--green-deep)' : 'var(--green)' }}>
+            {price > 0 ? formatBRL(price) : 'GRÁTIS'}
           </span>
           <span style={{ ...D.body, fontSize: 11, color: 'var(--ink-soft)' }}>{unit}</span>
         </div>
@@ -218,39 +217,33 @@ function useIsDesktop() {
 
 function StepTickets({ config, qty, setQty, onAdvance }) {
   const isDesktop = useIsDesktop()
-  const limite = parseInt(config.limite_por_compra) || 2
-  const precos = {
-    promo: parseFloat(config.valor_lote_promo) || 0,
-    lote2: parseFloat(config.valor_lote2) || 0,
-    mesa:  parseFloat(config.valor_mesa)  || 0,
-  }
-  const totalQtd = qty.promo + qty.lote2 + qty.mesa
-  const totalVal = qty.promo * precos.promo + qty.lote2 * precos.lote2 + qty.mesa * precos.mesa
+  const limitePorPedido = parseInt(config.limite_por_compra) || 4
+  const disponiveis = parseInt(config.disponivel_cortesia) || 0
+  const limite = Math.min(limitePorPedido, disponiveis)
+  const totalQtd = qty.cortesia || 0
+  const esgotado = disponiveis === 0
 
-  const update = (id, d) => {
+  const update = (d) => {
     setQty(q => {
-      const others = Object.entries(q).reduce((s, [k, v]) => k !== id ? s + v : s, 0)
-      const next = Math.max(0, (q[id] || 0) + d)
-      if (d > 0 && next + others > limite) return q
-      return { ...q, [id]: next }
+      const next = Math.max(0, (q.cortesia || 0) + d)
+      if (d > 0 && next > limite) return q
+      return { ...q, cortesia: next }
     })
   }
 
-  const esgotado = {
-    promo: config.disponivel_lote_promo === '0',
-    lote2: config.disponivel_lote2 === '0',
-    mesa:  config.disponivel_mesa === '0',
-  }
-
-  const TICKETS = [
-    { id: 'promo', name: 'Lote Promocional', price: precos.promo, unit: '/ unid.', badge: null },
-    { id: 'lote2', name: '2º Lote',          price: precos.lote2, unit: '/ unid.', badge: null },
-    { id: 'mesa',  name: 'Mesa para 4',       price: precos.mesa,  unit: '/ mesa',  badge: null, description: '+4 bebidas inclusas: Heineken ou Batijá' },
-  ]
-
-  const ticketRows = TICKETS.map(t => (
-    <TicketRow key={t.id} {...t} qty={qty[t.id] || 0} onChange={(d) => update(t.id, d)} maxReached={totalQtd >= limite} esgotado={esgotado[t.id]} />
-  ))
+  const ticketRows = (
+    <TicketRow
+      id="cortesia"
+      name="Ingresso Cortesia"
+      price={0}
+      unit="/ unid."
+      badge={null}
+      qty={totalQtd}
+      onChange={update}
+      maxReached={totalQtd >= limite}
+      esgotado={esgotado}
+    />
+  )
 
   /* ── DESKTOP ── */
   if (isDesktop) {
@@ -368,24 +361,24 @@ function StepTickets({ config, qty, setQty, onAdvance }) {
               </div>
 
               <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 12 }}>
-                <div style={{ ...D.displayCond, fontSize: 20, color: 'var(--ink)' }}>ESCOLHA SEU INGRESSO</div>
-                <div style={{ ...D.body, fontSize: 11, color: 'var(--ink-soft)' }}>máx. {limite} / pedido</div>
+                <div style={{ ...D.displayCond, fontSize: 20, color: 'var(--ink)' }}>INGRESSO CORTESIA</div>
+                <div style={{ ...D.body, fontSize: 11, color: 'var(--ink-soft)' }}>{disponiveis} disponíveis</div>
               </div>
 
               {ticketRows}
 
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', padding: '10px 4px', marginTop: 4 }}>
                 <span style={{ ...D.body, color: 'var(--ink-soft)', fontSize: 13 }}>
-                  {totalQtd === 0 ? 'Nenhum ingresso' : `${totalQtd} ${totalQtd === 1 ? 'item' : 'itens'}`}
+                  {totalQtd === 0 ? 'Nenhum ingresso' : `${totalQtd} ${totalQtd === 1 ? 'ingresso' : 'ingressos'}`}
                 </span>
-                <span style={{ ...D.display, fontSize: 36, color: 'var(--green-deep)' }}>{formatBRL(totalVal)}</span>
+                <span style={{ ...D.display, fontSize: 36, color: 'var(--green)' }}>GRÁTIS</span>
               </div>
 
               <BtnPrimary disabled={totalQtd === 0} onClick={onAdvance}>
-                Continuar · PIX na hora →
+                Confirmar presença →
               </BtnPrimary>
               <div style={{ textAlign: 'center', fontSize: 11, ...D.body, color: 'var(--ink-soft)', marginTop: 10 }}>
-                🔒 Ambiente seguro · QR Code PIX gerado na hora
+                O ingresso com QR code chega no seu e-mail
               </div>
             </div>
           </div>
@@ -467,8 +460,8 @@ function StepTickets({ config, qty, setQty, onAdvance }) {
 
       <div style={{ padding: '22px 16px 140px' }}>
         <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', padding: '0 6px 12px' }}>
-          <div style={{ ...D.displayCond, fontSize: 22, color: 'var(--ink)' }}>ESCOLHA SEU INGRESSO</div>
-          <div style={{ ...D.body, fontSize: 11, color: 'var(--ink-soft)' }}>máx. {limite} / pedido</div>
+          <div style={{ ...D.displayCond, fontSize: 22, color: 'var(--ink)' }}>INGRESSO CORTESIA</div>
+          <div style={{ ...D.body, fontSize: 11, color: 'var(--ink-soft)' }}>{disponiveis} disponíveis</div>
         </div>
         {ticketRows}
       </div>
@@ -476,15 +469,15 @@ function StepTickets({ config, qty, setQty, onAdvance }) {
       <StickyFooter>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 10 }}>
           <div style={{ ...D.body, fontSize: 13, color: 'var(--ink-soft)' }}>
-            {totalQtd === 0 ? 'Nenhum ingresso' : `${totalQtd} ${totalQtd === 1 ? 'item' : 'itens'}`}
+            {totalQtd === 0 ? 'Nenhum ingresso' : `${totalQtd} ${totalQtd === 1 ? 'ingresso' : 'ingressos'}`}
           </div>
-          <div style={{ ...D.displayCond, fontSize: 28, color: 'var(--ink)' }}>{formatBRL(totalVal)}</div>
+          <div style={{ ...D.displayCond, fontSize: 28, color: 'var(--green)' }}>GRÁTIS</div>
         </div>
         <BtnPrimary disabled={totalQtd === 0} onClick={onAdvance}>
-          Continuar · PIX na hora →
+          Confirmar presença →
         </BtnPrimary>
         <div style={{ textAlign: 'center', fontSize: 11, ...D.body, color: 'var(--ink-soft)', marginTop: 8 }}>
-          🔒 Ambiente seguro · QR Code PIX gerado na hora
+          O ingresso com QR code chega no seu e-mail
         </div>
       </StickyFooter>
     </div>
@@ -505,15 +498,8 @@ const labelStyle = {
   color: 'var(--ink)', display: 'block', marginBottom: 8,
 }
 
-function StepDados({ qty, config, form, setForm, enviando, erro, onBack, onSubmit }) {
-  const precos = {
-    promo: parseFloat(config.valor_lote_promo) || 0,
-    lote2: parseFloat(config.valor_lote2) || 0,
-    mesa: parseFloat(config.valor_mesa) || 0,
-  }
-  const totalVal = qty.promo * precos.promo + qty.lote2 * precos.lote2 + qty.mesa * precos.mesa
+function StepDados({ qty, form, setForm, enviando, erro, onBack, onSubmit }) {
   const valid = form.nome.trim().length > 2 && form.email.includes('@') && form.email.includes('.')
-
   const set = (k) => (e) => setForm(f => ({ ...f, [k]: e.target.value }))
 
   return (
@@ -573,28 +559,14 @@ function StepDados({ qty, config, form, setForm, enviando, erro, onBack, onSubmi
           boxShadow: 'var(--shadow-card)',
         }}>
           <div style={{ ...D.displayCond, fontSize: 16, color: 'var(--ink)', marginBottom: 10 }}>SEU PEDIDO</div>
-          {qty.promo > 0 && (
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6, ...D.body, fontSize: 14, color: 'var(--ink)' }}>
-              <span>{qty.promo}× Lote Promocional</span>
-              <span style={{ fontWeight: 600 }}>{formatBRL(qty.promo * precos.promo)}</span>
-            </div>
-          )}
-          {qty.lote2 > 0 && (
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6, ...D.body, fontSize: 14, color: 'var(--ink)' }}>
-              <span>{qty.lote2}× 2º Lote</span>
-              <span style={{ fontWeight: 600 }}>{formatBRL(qty.lote2 * precos.lote2)}</span>
-            </div>
-          )}
-          {qty.mesa > 0 && (
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6, ...D.body, fontSize: 14, color: 'var(--ink)' }}>
-              <span>{qty.mesa}× Mesa para 4</span>
-              <span style={{ fontWeight: 600 }}>{formatBRL(qty.mesa * precos.mesa)}</span>
-            </div>
-          )}
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6, ...D.body, fontSize: 14, color: 'var(--ink)' }}>
+            <span>{qty.cortesia}× Cortesia</span>
+            <span style={{ fontWeight: 600, color: 'var(--green-deep)' }}>GRÁTIS</span>
+          </div>
           <div style={{ height: 1, background: 'var(--ink)', opacity: 0.15, margin: '10px 0' }} />
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
             <span style={{ ...D.displayCond, fontSize: 14 }}>TOTAL</span>
-            <span style={{ ...D.display, fontSize: 28, color: 'var(--green-deep)' }}>{formatBRL(totalVal)}</span>
+            <span style={{ ...D.display, fontSize: 28, color: 'var(--green)' }}>GRÁTIS</span>
           </div>
         </div>
 
@@ -611,140 +583,35 @@ function StepDados({ qty, config, form, setForm, enviando, erro, onBack, onSubmi
 
       <StickyFooter>
         <BtnPrimary disabled={!valid || enviando} onClick={onSubmit}>
-          {enviando ? 'Gerando PIX...' : 'Gerar QR Code PIX →'}
+          {enviando ? 'Confirmando...' : 'Confirmar presença →'}
         </BtnPrimary>
       </StickyFooter>
     </div>
   )
 }
 
-/* ── Step 3: PIX QR Code ── */
+/* ── Step 3: Confirmação ── */
 
-function StepPix({ resultado, copiado, onCopiar, avisoEnviado, setAvisoEnviado, confirmado, onBack }) {
+function StepConfirmado({ resultado }) {
   const v = resultado.venda
-  const partes = []
-  if (v.quantidade_lote_promo > 0) partes.push(`${v.quantidade_lote_promo}× Lote Promo`)
-  if (v.quantidade_lote2 > 0)      partes.push(`${v.quantidade_lote2}× 2º Lote`)
-  if (v.quantidade_mesa > 0)       partes.push(`${v.quantidade_mesa}× Mesa`)
-  const desc = partes.join(' + ')
-
-  if (confirmado) {
-    return (
-      <div style={{ minHeight: '100dvh', background: 'var(--green)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '32px 24px', textAlign: 'center' }} className="paper-bg">
-        <div style={{ fontSize: 72, lineHeight: 1 }}>🎉</div>
-        <div style={{ ...D.display, fontSize: 56, color: 'var(--cream-warm)', WebkitTextStroke: '2px var(--ink)', paintOrder: 'stroke fill', marginTop: 12, lineHeight: 0.9 }}>
-          PAGAMENTO<br />CONFIRMADO!
-        </div>
-        <div style={{ marginTop: 20, ...D.body, fontSize: 15, color: 'var(--ink)', maxWidth: 320, lineHeight: 1.6 }}>
-          Seu ingresso está a caminho!<br />
-          Verifique o e-mail <strong>{v.email}</strong> para o comprovante.
-        </div>
-        <div style={{ marginTop: 24, background: 'var(--ink)', color: 'var(--cream-warm)', borderRadius: 18, padding: '16px 24px', maxWidth: 300, width: '100%' }}>
-          <div style={{ ...D.displayCond, fontSize: 12, letterSpacing: '0.18em', opacity: 0.6, marginBottom: 4 }}>NOS VEMOS LÁ!</div>
-          <div style={{ ...D.displayCond, fontSize: 22 }}>13 JUN 2026</div>
-          <div style={{ ...D.body, fontSize: 13, opacity: 0.75, marginTop: 4 }}>16h · Olinda, PE</div>
-        </div>
-        <div style={{ marginTop: 20, ...D.displayCond, fontSize: 13, color: 'var(--ink)', letterSpacing: '0.1em', opacity: 0.8 }}>
-          {desc} · {formatBRL(v.valor_total)}
-        </div>
-      </div>
-    )
-  }
-
+  const qty = v.quantidade_lote_promo || v.quantidade || 0
   return (
-    <div style={{ minHeight: '100dvh', background: 'var(--cream)' }} className="paper-bg">
-      <DarkHeader onBack={onBack} />
-
-      <div style={{ padding: '20px 16px 40px', maxWidth: 520, margin: '0 auto' }}>
-        <StepProgress step={3} />
-
-        <div style={{ ...D.displayCond, fontSize: 28, color: 'var(--ink)' }}>PAGUE COM PIX</div>
-        <div style={{ ...D.body, fontSize: 13, color: 'var(--ink-soft)', marginBottom: 16 }}>
-          Após pagar, o ingresso cai no seu e-mail em breve.
-        </div>
-
-        {/* QR card */}
-        <div style={{
-          background: 'var(--cream-warm)', border: '2.5px solid var(--ink)',
-          borderRadius: 22, padding: 20, textAlign: 'center',
-          boxShadow: 'var(--shadow-card)',
-        }}>
-          <div style={{
-            display: 'inline-block', padding: 12, background: '#fff',
-            border: '2px solid var(--ink)', borderRadius: 12,
-          }}>
-            <img src={resultado.qrDataUrl} alt="QR Code PIX" width={200} height={200} />
-          </div>
-
-          <div style={{ marginTop: 14, ...D.displayCond, color: 'var(--ink)', fontSize: 14, letterSpacing: '0.08em' }}>
-            APONTE A CÂMERA DO SEU BANCO
-          </div>
-
-          <div style={{
-            marginTop: 14, padding: 10,
-            background: 'var(--cream-deep)', border: '2px dashed var(--ink)',
-            borderRadius: 10, fontFamily: 'monospace', fontSize: 11, color: 'var(--ink)',
-            wordBreak: 'break-all', lineHeight: 1.4, textAlign: 'left',
-          }}>
-            {resultado.pixString}
-          </div>
-
-          <button
-            type="button"
-            onClick={onCopiar}
-            style={{
-              marginTop: 12,
-              display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-              ...D.body, fontWeight: 600, fontSize: 14,
-              background: copiado ? 'rgba(30,168,74,0.1)' : 'transparent',
-              color: copiado ? 'var(--green-deep)' : 'var(--ink)',
-              border: `2px solid ${copiado ? 'var(--green)' : 'var(--ink)'}`,
-              borderRadius: 999, padding: '10px 18px',
-              cursor: 'pointer', width: '100%',
-              transition: 'all .15s ease',
-            }}
-          >
-            {copiado ? '✓ Código copiado!' : '📋 Copiar código PIX'}
-          </button>
-
-          {!avisoEnviado ? (
-            <button
-              type="button"
-              onClick={() => setAvisoEnviado(true)}
-              style={{
-                marginTop: 10,
-                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-                ...D.displayCond, fontSize: 16, letterSpacing: '0.04em',
-                background: 'var(--yellow)', color: 'var(--ink)',
-                border: '2.5px solid var(--ink)', borderRadius: 999, padding: '14px 18px',
-                cursor: 'pointer', width: '100%',
-                boxShadow: '0 3px 0 0 var(--ink)',
-              }}
-            >
-              ✅ Já fiz o PIX!
-            </button>
-          ) : (
-            <div style={{
-              marginTop: 14,
-              background: 'rgba(30,168,74,0.08)', border: '2px solid var(--green)',
-              borderRadius: 16, padding: '14px 16px', textAlign: 'center',
-            }}>
-              <div style={{ fontSize: 28 }}>⏳</div>
-              <div style={{ ...D.displayCond, fontSize: 17, color: 'var(--green-deep)', marginTop: 6, letterSpacing: '0.06em' }}>
-                AGUARDANDO CONFIRMAÇÃO
-              </div>
-              <div style={{ ...D.body, fontSize: 13, color: 'var(--ink-soft)', marginTop: 8, lineHeight: 1.6 }}>
-                Estamos verificando seu pagamento. Assim que confirmado, esta tela atualiza automaticamente e você recebe o e-mail.
-              </div>
-            </div>
-          )}
-        </div>
-
-        <div style={{ marginTop: 14, ...D.body, fontSize: 12, color: 'var(--ink-soft)', textAlign: 'center', lineHeight: 1.6 }}>
-          Valor: <strong style={{ color: 'var(--ink)' }}>{formatBRL(v.valor_total)}</strong><br />
-          {desc}<br />
-          Após o pagamento, aguarde a confirmação do organizador. Guarde esta página como comprovante.
-        </div>
+    <div style={{ minHeight: '100dvh', background: 'var(--green)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '32px 24px', textAlign: 'center' }} className="paper-bg">
+      <div style={{ fontSize: 72, lineHeight: 1 }}>🎉</div>
+      <div style={{ ...D.display, fontSize: 56, color: 'var(--cream-warm)', WebkitTextStroke: '2px var(--ink)', paintOrder: 'stroke fill', marginTop: 12, lineHeight: 0.9 }}>
+        PRESENÇA<br />CONFIRMADA!
+      </div>
+      <div style={{ marginTop: 20, ...D.body, fontSize: 15, color: 'var(--ink)', maxWidth: 320, lineHeight: 1.6 }}>
+        Seu ingresso está a caminho!<br />
+        Verifique o e-mail <strong>{v.email}</strong> para o QR code de entrada.
+      </div>
+      <div style={{ marginTop: 24, background: 'var(--ink)', color: 'var(--cream-warm)', borderRadius: 18, padding: '16px 24px', maxWidth: 300, width: '100%' }}>
+        <div style={{ ...D.displayCond, fontSize: 12, letterSpacing: '0.18em', opacity: 0.6, marginBottom: 4 }}>NOS VEMOS LÁ!</div>
+        <div style={{ ...D.displayCond, fontSize: 22 }}>13 JUN 2026</div>
+        <div style={{ ...D.body, fontSize: 13, opacity: 0.75, marginTop: 4 }}>16h · Olinda, PE</div>
+      </div>
+      <div style={{ marginTop: 20, ...D.displayCond, fontSize: 13, color: 'var(--ink)', letterSpacing: '0.1em', opacity: 0.8 }}>
+        {qty}× Cortesia · GRÁTIS
       </div>
     </div>
   )
@@ -755,15 +622,12 @@ function StepPix({ resultado, copiado, onCopiar, avisoEnviado, setAvisoEnviado, 
 export default function VendaPublica() {
   const [config, setConfig] = useState({})
   const [loadingConfig, setLoadingConfig] = useState(true)
-  const [qty, setQty] = useState({ promo: 0, lote2: 0, mesa: 0 })
+  const [qty, setQty] = useState({ cortesia: 0 })
   const [form, setForm] = useState({ nome: '', email: '', telefone: '' })
   const [step, setStep] = useState(1)
   const [resultado, setResultado] = useState(null)
   const [enviando, setEnviando] = useState(false)
   const [erro, setErro] = useState('')
-  const [copiado, setCopiado] = useState(false)
-  const [avisoEnviado, setAvisoEnviado] = useState(false)
-  const [confirmado, setConfirmado] = useState(false)
 
   useEffect(() => {
     fetch('/api/config')
@@ -789,21 +653,6 @@ export default function VendaPublica() {
     return () => window.removeEventListener('popstate', onPop)
   }, [step])
 
-  useEffect(() => {
-    if (step !== 3 || !resultado || confirmado) return
-    const poll = async () => {
-      try {
-        const res = await fetch(`/api/tickets/vendas/${resultado.venda.id}`)
-        if (!res.ok) return
-        const data = await res.json()
-        if (data.status === 'pago') setConfirmado(true)
-      } catch (_) {}
-    }
-    poll()
-    const id = setInterval(poll, 15000)
-    return () => clearInterval(id)
-  }, [step, resultado, confirmado])
-
   const goTo = (s) => {
     window.history.pushState({ step: s }, '')
     setStep(s)
@@ -820,27 +669,18 @@ export default function VendaPublica() {
           nome: form.nome.trim(),
           email: form.email.trim(),
           telefone: form.telefone.trim() || undefined,
-          quantidade_lote_promo: qty.promo,
-          quantidade_lote2: qty.lote2,
-          quantidade_mesa: qty.mesa,
+          quantidade_lote_promo: qty.cortesia,
         }),
       })
       const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Erro ao registrar pedido')
-      const qrDataUrl = await QRCode.toDataURL(data.pixString, { width: 260, margin: 2 })
-      setResultado({ ...data, qrDataUrl })
+      if (!res.ok) throw new Error(data.error || 'Erro ao confirmar')
+      setResultado(data)
       goTo(3)
     } catch (err) {
       setErro(err.message)
     } finally {
       setEnviando(false)
     }
-  }
-
-  const copiar = () => {
-    navigator.clipboard.writeText(resultado.pixString)
-    setCopiado(true)
-    setTimeout(() => setCopiado(false), 2500)
   }
 
   if (loadingConfig) {
@@ -883,7 +723,7 @@ export default function VendaPublica() {
   if (step === 2) {
     return (
       <StepDados
-        qty={qty} config={config}
+        qty={qty}
         form={form} setForm={setForm}
         enviando={enviando} erro={erro}
         onBack={() => { setErro(''); goTo(1) }}
@@ -891,15 +731,5 @@ export default function VendaPublica() {
       />
     )
   }
-  return (
-    <StepPix
-      resultado={resultado}
-      copiado={copiado}
-      onCopiar={copiar}
-      avisoEnviado={avisoEnviado}
-      setAvisoEnviado={setAvisoEnviado}
-      confirmado={confirmado}
-      onBack={() => setStep(2)}
-    />
-  )
+  return <StepConfirmado resultado={resultado} />
 }

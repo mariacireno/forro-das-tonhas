@@ -90,64 +90,38 @@ router.post('/venda', (req, res) => {
   if (getConf('vendas_ativas') === '0')
     return res.status(503).json({ error: 'Vendas temporariamente suspensas.' })
 
-  const { nome, email, cpf, telefone, quantidade_lote_promo, quantidade_lote2, quantidade_mesa } = req.body
+  const { nome, email, cpf, telefone, quantidade_lote_promo } = req.body
   if (!nome || !email) return res.status(400).json({ error: 'Nome e email são obrigatórios' })
 
-  const qtyLotePromo = parseInt(quantidade_lote_promo) || 0
-  const qtyLote2 = parseInt(quantidade_lote2) || 0
-  const qtyMesa = parseInt(quantidade_mesa) || 0
-  const qtyTotal = qtyLotePromo + qtyLote2 + qtyMesa
-
-  if (qtyTotal === 0) return res.status(400).json({ error: 'Selecione pelo menos 1 ingresso' })
+  const qty = parseInt(quantidade_lote_promo) || 0
+  if (qty === 0) return res.status(400).json({ error: 'Selecione pelo menos 1 ingresso' })
 
   const limite = parseInt(getConf('limite_por_compra')) || 4
-  if (qtyTotal > limite) return res.status(400).json({ error: `Máximo de ${limite} por compra` })
+  if (qty > limite) return res.status(400).json({ error: `Máximo de ${limite} por pedido` })
 
-  // Valida estoque (0 = ilimitado)
-  const vendidos = db.prepare(`
-    SELECT COALESCE(SUM(quantidade_lote_promo),0) AS promo,
-           COALESCE(SUM(quantidade_lote2),0)      AS lote2,
-           COALESCE(SUM(quantidade_mesa),0)       AS mesa
-    FROM ticket_vendas WHERE status = 'pago'
-  `).get()
-  const estoquePromo = parseInt(getConf('estoque_lote_promo')) || 0
-  const estoqueLote2 = parseInt(getConf('estoque_lote2'))      || 0
-  const estoqueMesa  = parseInt(getConf('estoque_mesa'))       || 0
-  if (estoquePromo > 0 && vendidos.promo + qtyLotePromo > estoquePromo)
-    return res.status(400).json({ error: 'Lote Promocional esgotado' })
-  if (estoqueLote2 > 0 && vendidos.lote2 + qtyLote2 > estoqueLote2)
-    return res.status(400).json({ error: '2º Lote esgotado' })
-  if (estoqueMesa > 0 && vendidos.mesa + qtyMesa > estoqueMesa)
-    return res.status(400).json({ error: 'Mesas esgotadas' })
-
-  const precoLotePromo = parseFloat(getConf('valor_lote_promo')) || 0
-  const precoLote2 = parseFloat(getConf('valor_lote2')) || 0
-  const precoMesa = parseFloat(getConf('valor_mesa')) || 0
-  const valorTotal = (qtyLotePromo * precoLotePromo) + (qtyLote2 * precoLote2) + (qtyMesa * precoMesa)
-
-  const pixChave = getConf('pix_chave')
-  if (!pixChave) return res.status(400).json({ error: 'Chave PIX não configurada. Contate o organizador.' })
+  // Verifica capacidade global de cortesias
+  const limiteCortesia = parseInt(getConf('limite_cortesia')) || 60
+  const totalCheckins = db.prepare('SELECT COUNT(*) AS n FROM ticket_checkins').get().n
+  const disponiveis = limiteCortesia - totalCheckins
+  if (disponiveis <= 0) return res.status(400).json({ error: 'Ingressos esgotados' })
+  if (qty > disponiveis) return res.status(400).json({ error: `Restam apenas ${disponiveis} ${disponiveis === 1 ? 'ingresso' : 'ingressos'}` })
 
   const id = uuidv4()
   db.prepare(`
-    INSERT INTO ticket_vendas (id, nome, email, cpf, telefone, tipo, quantidade, quantidade_lote_promo, quantidade_lote2, quantidade_mesa, valor_total, status)
-    VALUES (?, ?, ?, ?, ?, 'misto', ?, ?, ?, ?, ?, 'pendente')
-  `).run(id, nome, email, cpf || null, telefone || null, qtyTotal, qtyLotePromo, qtyLote2, qtyMesa, valorTotal)
+    INSERT INTO ticket_vendas (id, nome, email, cpf, telefone, tipo, quantidade, quantidade_lote_promo, valor_total, status)
+    VALUES (?, ?, ?, ?, ?, 'cortesia', ?, ?, 0, 'pago')
+  `).run(id, nome, email, cpf || null, telefone || null, qty, qty)
 
-  const pixString = buildPixPayload({
-    chave: pixChave,
-    nome: getConf('pix_nome') || 'Forro das Tonhas',
-    cidade: getConf('pix_cidade') || 'Brasil',
-    valor: valorTotal,
-    txid: id.replace(/-/g, '').slice(0, 25),
-  })
+  const insC = db.prepare('INSERT INTO ticket_checkins (id, venda_id, tipo, nome, seq) VALUES (?, ?, ?, ?, ?)')
+  for (let i = 0; i < qty; i++) insC.run(uuidv4(), id, 'Cortesia', nome, i + 1)
 
   const vendaCriada = db.prepare('SELECT * FROM ticket_vendas WHERE id = ?').get(id)
-  sendNotificacaoNovaVenda(vendaCriada).catch(err =>
-    console.error('Email de notificação de nova venda falhou:', err.message)
+  const checkins = db.prepare('SELECT * FROM ticket_checkins WHERE venda_id = ? ORDER BY seq').all(id)
+  sendConfirmacaoIngresso(vendaCriada, checkins).catch(err =>
+    console.error('Email de confirmação falhou:', err.message)
   )
 
-  res.status(201).json({ venda: vendaCriada, pixString })
+  res.status(201).json({ venda: vendaCriada })
 })
 
 router.get('/vendas/:id/pdf', async (req, res) => {
