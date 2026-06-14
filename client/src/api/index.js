@@ -67,4 +67,14 @@ export const api = {
 
   // Transactions
   updateTransaction: (id, data) => req(`/transactions/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+
+  // Bar
+  getCardapio: () => req('/bar/cardapio'),
+  createItemCardapio: (data) => req('/bar/cardapio', { method: 'POST', body: JSON.stringify(data) }),
+  updateItemCardapio: (id, data) => req(`/bar/cardapio/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  deleteItemCardapio: (id) => req(`/bar/cardapio/${id}`, { method: 'DELETE' }),
+  getVendasBar: () => req('/bar/vendas'),
+  getBarSummary: () => req('/bar/summary'),
+  registrarVendaBar: (itens) => req('/bar/vendas', { method: 'POST', body: JSON.stringify({ itens }) }),
+  deletarVendaBar: (id) => req(`/bar/vendas/${id}`, { method: 'DELETE' }),
 }

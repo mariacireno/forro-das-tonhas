@@ -6,6 +6,7 @@ import Dashboard from './pages/Dashboard'
 import Tarefas from './pages/Tarefas'
 import Financeiro from './pages/Financeiro'
 import Ingressos from './pages/Ingressos'
+import Bar from './pages/Bar'
 import VendaPublica from './pages/VendaPublica'
 import Login from './pages/Login'
 
@@ -38,6 +39,7 @@ export default function App() {
                     <Route path="/tarefas" element={<Tarefas />} />
                     <Route path="/financeiro" element={<Financeiro />} />
                     <Route path="/ingressos" element={<Ingressos />} />
+                    <Route path="/bar" element={<Bar />} />
                   </Routes>
                 </main>
                 <BottomNav />

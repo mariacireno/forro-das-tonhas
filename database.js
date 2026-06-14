@@ -90,6 +90,30 @@ try { db.exec("ALTER TABLE ticket_vendas ADD COLUMN quantidade_mesa INTEGER DEFA
 try { db.exec("ALTER TABLE ticket_vendas ADD COLUMN cpf TEXT") } catch (_) {}
 try { db.exec("ALTER TABLE ticket_vendas ADD COLUMN telefone TEXT") } catch (_) {}
 
+// Bar: cardápio e vendas
+db.exec(`
+  CREATE TABLE IF NOT EXISTS cardapio (
+    id TEXT PRIMARY KEY,
+    nome TEXT NOT NULL,
+    categoria TEXT DEFAULT 'bebida',
+    preco REAL NOT NULL,
+    custo REAL NOT NULL DEFAULT 0,
+    ativo INTEGER DEFAULT 1,
+    created_at TEXT DEFAULT (datetime('now'))
+  );
+
+  CREATE TABLE IF NOT EXISTS vendas_bar (
+    id TEXT PRIMARY KEY,
+    item_id TEXT NOT NULL,
+    nome_item TEXT NOT NULL,
+    quantidade INTEGER NOT NULL,
+    preco_unitario REAL NOT NULL,
+    custo_unitario REAL NOT NULL DEFAULT 0,
+    total REAL NOT NULL,
+    created_at TEXT DEFAULT (datetime('now'))
+  );
+`)
+
 // Check-in por ingresso individual
 db.exec(`
   CREATE TABLE IF NOT EXISTS ticket_checkins (

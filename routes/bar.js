@@ -1,0 +1,113 @@
+const express = require('express')
+const router = express.Router()
+const { v4: uuidv4 } = require('uuid')
+const db = require('../database')
+
+// --- Cardápio ---
+
+router.get('/cardapio', (req, res) => {
+  res.json(db.prepare('SELECT * FROM cardapio ORDER BY categoria, nome COLLATE NOCASE').all())
+})
+
+router.post('/cardapio', (req, res) => {
+  const { nome, categoria, preco, custo } = req.body
+  if (!nome || preco == null) return res.status(400).json({ error: 'Nome e preço obrigatórios' })
+  const id = uuidv4()
+  db.prepare('INSERT INTO cardapio (id, nome, categoria, preco, custo) VALUES (?, ?, ?, ?, ?)')
+    .run(id, nome.trim(), categoria || 'bebida', parseFloat(preco), parseFloat(custo) || 0)
+  res.status(201).json(db.prepare('SELECT * FROM cardapio WHERE id = ?').get(id))
+})
+
+router.put('/cardapio/:id', (req, res) => {
+  const { nome, categoria, preco, custo, ativo } = req.body
+  const item = db.prepare('SELECT * FROM cardapio WHERE id = ?').get(req.params.id)
+  if (!item) return res.status(404).json({ error: 'Item não encontrado' })
+  db.prepare('UPDATE cardapio SET nome=?, categoria=?, preco=?, custo=?, ativo=? WHERE id=?')
+    .run(
+      nome?.trim() ?? item.nome,
+      categoria ?? item.categoria,
+      preco != null ? parseFloat(preco) : item.preco,
+      custo != null ? parseFloat(custo) : item.custo,
+      ativo != null ? (ativo ? 1 : 0) : item.ativo,
+      req.params.id,
+    )
+  res.json(db.prepare('SELECT * FROM cardapio WHERE id = ?').get(req.params.id))
+})
+
+router.delete('/cardapio/:id', (req, res) => {
+  if (!db.prepare('SELECT id FROM cardapio WHERE id = ?').get(req.params.id))
+    return res.status(404).json({ error: 'Item não encontrado' })
+  db.prepare('DELETE FROM cardapio WHERE id = ?').run(req.params.id)
+  res.json({ ok: true })
+})
+
+// --- Vendas do bar ---
+
+router.get('/vendas', (req, res) => {
+  res.json(db.prepare('SELECT * FROM vendas_bar ORDER BY created_at DESC').all())
+})
+
+router.get('/summary', (req, res) => {
+  const porItem = db.prepare(`
+    SELECT
+      item_id, nome_item, categoria,
+      SUM(quantidade) AS qtd_total,
+      SUM(total) AS receita,
+      SUM(quantidade * custo_unitario) AS custo_total,
+      SUM(total - quantidade * custo_unitario) AS lucro
+    FROM vendas_bar
+    JOIN cardapio ON cardapio.id = vendas_bar.item_id
+    GROUP BY item_id
+    ORDER BY receita DESC
+  `).all()
+
+  const totais = db.prepare(`
+    SELECT
+      SUM(total) AS receita,
+      SUM(quantidade * custo_unitario) AS custo_total,
+      SUM(total - quantidade * custo_unitario) AS lucro,
+      SUM(quantidade) AS qtd_total
+    FROM vendas_bar
+  `).get()
+
+  res.json({ porItem, totais })
+})
+
+router.post('/vendas', (req, res) => {
+  const { itens } = req.body
+  if (!Array.isArray(itens) || itens.length === 0)
+    return res.status(400).json({ error: 'Nenhum item informado' })
+
+  const insVenda = db.prepare(
+    'INSERT INTO vendas_bar (id, item_id, nome_item, quantidade, preco_unitario, custo_unitario, total) VALUES (?, ?, ?, ?, ?, ?, ?)'
+  )
+  const insTx = db.prepare(
+    "INSERT INTO transactions (id, tipo, categoria, valor, descricao) VALUES (?, 'receita', 'bar', ?, ?)"
+  )
+
+  const venda = db.transaction(() => {
+    const registros = []
+    for (const { item_id, quantidade } of itens) {
+      const item = db.prepare('SELECT * FROM cardapio WHERE id = ?').get(item_id)
+      if (!item) throw new Error(`Item ${item_id} não encontrado`)
+      const qty = parseInt(quantidade) || 1
+      const total = qty * item.preco
+      const id = uuidv4()
+      insVenda.run(id, item.id, item.nome, qty, item.preco, item.custo, total)
+      insTx.run(uuidv4(), total, `${qty}× ${item.nome} (bar)`)
+      registros.push({ id, item, qty, total })
+    }
+    return registros
+  })()
+
+  res.status(201).json(venda)
+})
+
+router.delete('/vendas/:id', (req, res) => {
+  const v = db.prepare('SELECT * FROM vendas_bar WHERE id = ?').get(req.params.id)
+  if (!v) return res.status(404).json({ error: 'Venda não encontrada' })
+  db.prepare('DELETE FROM vendas_bar WHERE id = ?').run(req.params.id)
+  res.json({ ok: true })
+})
+
+module.exports = router
