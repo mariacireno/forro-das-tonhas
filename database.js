@@ -162,6 +162,7 @@ const seedConfig = db.prepare('INSERT OR IGNORE INTO config (chave, valor) VALUE
   ['estoque_mesa', '0'],
   ['vendas_ativas', '0'],
   ['limite_cortesia', '60'],
+  ['bar_gerar_receita', '0'],
 ].forEach(([k, v]) => seedConfig.run(k, v))
 
 module.exports = db;

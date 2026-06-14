@@ -3,6 +3,8 @@ const router = express.Router()
 const { v4: uuidv4 } = require('uuid')
 const db = require('../database')
 
+const getConf = (k) => db.prepare('SELECT valor FROM config WHERE chave = ?').get(k)?.valor ?? ''
+
 // --- Cardápio ---
 
 router.get('/cardapio', (req, res) => {
@@ -78,12 +80,14 @@ router.post('/vendas', (req, res) => {
   if (!Array.isArray(itens) || itens.length === 0)
     return res.status(400).json({ error: 'Nenhum item informado' })
 
+  const gerarReceita = getConf('bar_gerar_receita') === '1'
+
   const insVenda = db.prepare(
     'INSERT INTO vendas_bar (id, item_id, nome_item, quantidade, preco_unitario, custo_unitario, total) VALUES (?, ?, ?, ?, ?, ?, ?)'
   )
-  const insTx = db.prepare(
-    "INSERT INTO transactions (id, tipo, categoria, valor, descricao) VALUES (?, 'receita', 'bar', ?, ?)"
-  )
+  const insTx = gerarReceita
+    ? db.prepare("INSERT INTO transactions (id, tipo, categoria, valor, descricao) VALUES (?, 'receita', 'bar', ?, ?)")
+    : null
 
   const venda = db.transaction(() => {
     const registros = []
@@ -94,7 +98,7 @@ router.post('/vendas', (req, res) => {
       const total = qty * item.preco
       const id = uuidv4()
       insVenda.run(id, item.id, item.nome, qty, item.preco, item.custo, total)
-      insTx.run(uuidv4(), total, `${qty}× ${item.nome} (bar)`)
+      if (insTx) insTx.run(uuidv4(), total, `${qty}× ${item.nome} (bar)`)
       registros.push({ id, item, qty, total })
     }
     return registros

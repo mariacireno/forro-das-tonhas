@@ -360,15 +360,27 @@ export default function Bar() {
   const [cardapio, setCardapio] = useState([])
   const [summary, setSummary] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [gerarReceita, setGerarReceita] = useState(false)
+  const [toggling, setToggling] = useState(false)
 
   const loadCardapio = () => api.getCardapio().then(setCardapio)
   const loadSummary = () => api.getBarSummary().then(setSummary)
 
-  const load = () => Promise.all([loadCardapio(), loadSummary()]).finally(() => setLoading(false))
+  const load = () => Promise.all([
+    loadCardapio(),
+    loadSummary(),
+    api.getConfig().then(c => setGerarReceita(c.bar_gerar_receita === '1')),
+  ]).finally(() => setLoading(false))
 
-  useEffect(() => {
-    load()
-  }, [])
+  useEffect(() => { load() }, [])
+
+  const toggleGerarReceita = async () => {
+    setToggling(true)
+    const novo = gerarReceita ? '0' : '1'
+    await api.updateConfig('bar_gerar_receita', novo)
+    setGerarReceita(!gerarReceita)
+    setToggling(false)
+  }
 
   if (loading) {
     return (
@@ -380,9 +392,23 @@ export default function Bar() {
 
   return (
     <div className="space-y-4">
-      <div>
-        <h1 className="text-2xl font-bold text-tonha-brown">Bar & Comidas</h1>
-        <p className="text-tonha-brown/60 text-sm">Registre vendas e acompanhe o lucro por item.</p>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-tonha-brown">Bar & Comidas</h1>
+          <p className="text-tonha-brown/60 text-sm">Registre vendas e acompanhe o lucro por item.</p>
+        </div>
+        <button
+          onClick={toggleGerarReceita}
+          disabled={toggling}
+          className={`shrink-0 flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-medium border transition-colors ${
+            gerarReceita
+              ? 'bg-tonha-sage/15 border-tonha-sage text-tonha-sage'
+              : 'border-tonha-sand text-tonha-brown/50 hover:border-tonha-brown/30'
+          }`}
+        >
+          <span className={`w-3 h-3 rounded-full border ${gerarReceita ? 'bg-tonha-sage border-tonha-sage' : 'border-tonha-brown/30'}`} />
+          {gerarReceita ? 'Gera receita' : 'Só estoque'}
+        </button>
       </div>
 
       {/* Tabs */}
