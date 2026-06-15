@@ -107,6 +107,10 @@ function SummaryCards({ receitas, custos, lucro, reinvestimento }) {
         <p className="text-lg font-bold text-tonha-darkterra">{formatBRL(custos)}</p>
       </div>
       <div className={`card text-center ${positivo ? 'bg-tonha-sage/10' : 'bg-red-50'}`}>
+        {positivo
+          ? <TrendingUp size={20} className="text-green-600 mx-auto mb-2" />
+          : <TrendingDown size={20} className="text-red-500 mx-auto mb-2" />
+        }
         <p className="text-xs text-tonha-brown/60">Resultado</p>
         <p className={`text-lg font-bold ${positivo ? 'text-green-700' : 'text-red-600'}`}>
           {formatBRL(lucro)}
