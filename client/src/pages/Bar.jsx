@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { ShoppingCart, Plus, Trash2, Edit2, X, Check, TrendingUp, Package } from 'lucide-react'
+import { ShoppingCart, Plus, Trash2, Edit2, X, Check, TrendingUp, Package, Star, AlertTriangle, ArrowUpCircle, Megaphone, BarChart2 } from 'lucide-react'
 import { api } from '../api'
 import { formatBRL } from '../utils/format'
 
@@ -316,8 +316,31 @@ function TabCaixa({ cardapio, onVenda }) {
   )
 }
 
+const REC_CONFIG = {
+  estrela:    { label: 'Estrela',        icon: Star,           bg: 'bg-green-100',       text: 'text-green-700',      tip: 'Alta saída e boa margem — mantenha o preço!' },
+  preco:      { label: 'Subir preço',    icon: ArrowUpCircle,  bg: 'bg-orange-100',      text: 'text-orange-700',     tip: 'Vende muito mas margem baixa — considere aumentar o preço' },
+  bom:        { label: 'Bom',            icon: TrendingUp,     bg: 'bg-tonha-sage/20',   text: 'text-tonha-sage',     tip: 'Boa saída com margem razoável — acompanhe' },
+  promover:   { label: 'Promover',       icon: Megaphone,      bg: 'bg-tonha-sky/15',    text: 'text-tonha-sky',      tip: 'Boa margem mas pouca saída — destaque mais no cardápio' },
+  revisar:    { label: 'Revisar',        icon: AlertTriangle,  bg: 'bg-red-100',         text: 'text-red-600',        tip: 'Pouca saída e margem baixa — considere remover ou reformular' },
+  monitorar:  { label: 'Monitorar',      icon: BarChart2,      bg: 'bg-tonha-sand',      text: 'text-tonha-brown/60', tip: 'Desempenho mediano — acompanhe a evolução' },
+  sem_dados:  { label: 'Sem dados',      icon: Package,        bg: 'bg-tonha-sand',      text: 'text-tonha-brown/40', tip: 'Nenhuma venda registrada neste evento' },
+}
+
+function recomendar(qtd, margem, avgQtd) {
+  if (qtd === 0) return 'sem_dados'
+  const altaSaida = avgQtd > 0 && qtd > avgQtd
+  const altaMargem = margem >= 40
+  const baixaMargem = margem < 25
+  if (altaSaida && altaMargem) return 'estrela'
+  if (altaSaida && baixaMargem) return 'preco'
+  if (altaSaida) return 'bom'
+  if (altaMargem) return 'promover'
+  if (baixaMargem) return 'revisar'
+  return 'monitorar'
+}
+
 /* ── Aba Relatório ── */
-function TabRelatorio({ summary, vendas, onReload }) {
+function TabRelatorio({ summary, vendas, cardapio, onReload }) {
   if (!summary) return <div className="text-center py-12 text-tonha-brown/40 text-sm">Carregando...</div>
 
   const { porItem, totais } = summary
@@ -328,6 +351,26 @@ function TabRelatorio({ summary, vendas, onReload }) {
     await api.deletarVendaBar(id)
     onReload()
   }
+
+  // Análise do cardápio
+  const porItemMap = Object.fromEntries((porItem || []).map(i => [i.item_id, i]))
+  const vendidos = (porItem || []).filter(i => i.qtd_total > 0)
+  const avgQtd = vendidos.length > 0 ? vendidos.reduce((s, i) => s + i.qtd_total, 0) / vendidos.length : 0
+
+  const analise = cardapio.map(item => {
+    const venda = porItemMap[item.id]
+    const qtd = venda?.qtd_total || 0
+    let margem = 0
+    if (venda && venda.receita > 0) margem = (venda.lucro / venda.receita) * 100
+    else if (item.preco > 0) margem = ((item.preco - item.custo) / item.preco) * 100
+    const recKey = recomendar(qtd, margem, avgQtd)
+    return { ...item, qtd, margem: Math.round(margem), rec: REC_CONFIG[recKey], venda }
+  }).sort((a, b) => {
+    const order = ['estrela', 'bom', 'preco', 'promover', 'monitorar', 'revisar', 'sem_dados']
+    const keyA = recomendar(a.qtd, a.margem, avgQtd)
+    const keyB = recomendar(b.qtd, b.margem, avgQtd)
+    return order.indexOf(keyA) - order.indexOf(keyB)
+  })
 
   return (
     <div className="space-y-4">
@@ -345,11 +388,47 @@ function TabRelatorio({ summary, vendas, onReload }) {
         ))}
       </div>
 
+      {/* Análise do cardápio */}
+      {cardapio.length > 0 && (
+        <div className="card overflow-hidden p-0">
+          <div className="px-4 py-3 border-b border-tonha-sand">
+            <p className="font-semibold text-sm text-tonha-brown flex items-center gap-2">
+              <Star size={15} /> Análise do cardápio
+            </p>
+            <p className="text-xs text-tonha-brown/40 mt-0.5">Baseada em margem e volume de saída neste evento</p>
+          </div>
+          <div className="divide-y divide-tonha-sand">
+            {analise.map(item => {
+              const { rec } = item
+              const RecIcon = rec.icon
+              return (
+                <div key={item.id} className="px-4 py-3 flex items-center gap-3">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <p className="font-medium text-sm text-tonha-brown">{item.nome}</p>
+                      <span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium ${rec.bg} ${rec.text}`}>
+                        <RecIcon size={11} />
+                        {rec.label}
+                      </span>
+                    </div>
+                    <p className="text-xs text-tonha-brown/40 mt-0.5">{rec.tip}</p>
+                  </div>
+                  <div className="text-right shrink-0 text-xs text-tonha-brown/50">
+                    <p><strong className="text-tonha-brown">{item.qtd}</strong> unid.</p>
+                    <p>margem <strong className={item.margem >= 40 ? 'text-tonha-sage' : item.margem < 25 ? 'text-red-500' : 'text-tonha-brown'}>{item.margem}%</strong></p>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
       {/* Por item */}
       {temDados && (
         <div className="card overflow-hidden p-0">
           <div className="px-4 py-3 border-b border-tonha-sand">
-            <p className="font-semibold text-sm text-tonha-brown flex items-center gap-2"><TrendingUp size={15} /> Por item</p>
+            <p className="font-semibold text-sm text-tonha-brown flex items-center gap-2"><TrendingUp size={15} /> Desempenho por item</p>
           </div>
           <div className="divide-y divide-tonha-sand">
             {porItem.map(item => {
@@ -504,7 +583,7 @@ export default function Bar() {
 
       {tab === 'caixa'     && <TabCaixa    cardapio={cardapio} onVenda={() => { loadSummary(); loadVendas() }} />}
       {tab === 'cardapio'  && <TabCardapio cardapio={cardapio} onReload={loadCardapio} />}
-      {tab === 'relatorio' && <TabRelatorio summary={summary} vendas={vendas} onReload={() => { loadSummary(); loadVendas() }} />}
+      {tab === 'relatorio' && <TabRelatorio summary={summary} vendas={vendas} cardapio={cardapio} onReload={() => { loadSummary(); loadVendas() }} />}
     </div>
   )
 }
