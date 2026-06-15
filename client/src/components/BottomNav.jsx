@@ -11,7 +11,9 @@ const links = [
 
 export default function BottomNav() {
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-tonha-sand flex md:hidden">
+    <nav className="fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-tonha-sand flex md:hidden"
+      style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
+    >
       {links.map(({ to, icon: Icon, label }) => (
         <NavLink
           key={to}

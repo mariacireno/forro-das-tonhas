@@ -48,6 +48,21 @@ body {
   font-family: 'Inter', system-ui, sans-serif;
 }
 
+/* Prevent iOS Safari from zooming on input focus (requires font-size >= 16px) */
+input, select, textarea {
+  font-size: max(16px, 1em);
+}
+
+/* Main content area — bottom padding accounts for fixed BottomNav + iOS home indicator */
+.main-scroll-area {
+  padding-bottom: calc(5rem + env(safe-area-inset-bottom, 0px));
+}
+@media (min-width: 768px) {
+  .main-scroll-area {
+    padding-bottom: 1.5rem;
+  }
+}
+
 @layer components {
   .card {
     @apply bg-white rounded-2xl shadow-sm border border-tonha-sand p-5;
