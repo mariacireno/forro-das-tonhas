@@ -168,6 +168,7 @@ function TabCaixa({ cardapio, onVenda }) {
   const [carrinho, setCarrinho] = useState({})
   const [registrando, setRegistrando] = useState(false)
   const [ok, setOk] = useState(false)
+  const [modoCortesia, setModoCortesia] = useState(false)
 
   const ativos = cardapio.filter(i => i.ativo)
   const grupos = CATEGORIAS.map(cat => ({
@@ -194,7 +195,10 @@ function TabCaixa({ cardapio, onVenda }) {
     if (itensCarrinho.length === 0) return
     setRegistrando(true)
     try {
-      await api.registrarVendaBar(itensCarrinho.map(([item_id, quantidade]) => ({ item_id, quantidade })))
+      await api.registrarVendaBar(
+        itensCarrinho.map(([item_id, quantidade]) => ({ item_id, quantidade })),
+        modoCortesia,
+      )
       setCarrinho({})
       setOk(true)
       setTimeout(() => setOk(false), 2000)
@@ -216,20 +220,37 @@ function TabCaixa({ cardapio, onVenda }) {
 
   return (
     <div className="space-y-4">
+      {/* Toggle cortesia */}
+      <button
+        onClick={() => { setModoCortesia(m => !m); setCarrinho({}) }}
+        className={`w-full flex items-center justify-between px-4 py-2.5 rounded-xl border-2 transition-colors text-sm font-medium ${
+          modoCortesia
+            ? 'bg-tonha-sky/10 border-tonha-sky text-tonha-sky'
+            : 'border-tonha-sand text-tonha-brown/50 hover:border-tonha-brown/30'
+        }`}
+      >
+        <span>{modoCortesia ? 'Modo cortesia ativo' : 'Modo venda'}</span>
+        <span className={`text-xs px-2 py-0.5 rounded-full ${modoCortesia ? 'bg-tonha-sky/20' : 'bg-tonha-sand'}`}>
+          {modoCortesia ? 'não contabiliza receita' : 'clique para cortesia'}
+        </span>
+      </button>
+
       {grupos.map(({ cat, itens }) => (
         <div key={cat}>
           <p className="text-xs font-semibold text-tonha-brown/50 uppercase tracking-wider mb-2">{CAT_LABEL[cat]}</p>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
             {itens.map(item => {
               const qty = carrinho[item.id] || 0
+              const activeColor = modoCortesia ? 'ring-tonha-sky bg-tonha-sky/5' : 'ring-tonha-terra bg-tonha-terra/5'
+              const badgeColor = modoCortesia ? 'bg-tonha-sky' : 'bg-tonha-terra'
               return (
                 <button
                   key={item.id}
                   onClick={() => add(item.id, 1)}
-                  className={`relative card text-left transition-all active:scale-95 select-none ${qty > 0 ? 'ring-2 ring-tonha-terra bg-tonha-terra/5' : 'hover:bg-tonha-sand/60'}`}
+                  className={`relative card text-left transition-all active:scale-95 select-none ${qty > 0 ? `ring-2 ${activeColor}` : 'hover:bg-tonha-sand/60'}`}
                 >
                   {qty > 0 && (
-                    <span className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-tonha-terra text-white text-xs font-bold flex items-center justify-center shadow">
+                    <span className={`absolute -top-2 -right-2 w-6 h-6 rounded-full ${badgeColor} text-white text-xs font-bold flex items-center justify-center shadow`}>
                       {qty}
                     </span>
                   )}
@@ -251,7 +272,11 @@ function TabCaixa({ cardapio, onVenda }) {
       ))}
 
       {/* Resumo do carrinho */}
-      <div className={`card sticky bottom-20 md:bottom-4 border-2 transition-colors ${itensCarrinho.length > 0 ? 'border-tonha-terra bg-white' : 'border-tonha-sand'}`}>
+      <div className={`card sticky bottom-20 md:bottom-4 border-2 transition-colors ${
+        itensCarrinho.length > 0
+          ? modoCortesia ? 'border-tonha-sky bg-white' : 'border-tonha-terra bg-white'
+          : 'border-tonha-sand'
+      }`}>
         {itensCarrinho.length > 0 && (
           <div className="mb-3 space-y-1">
             {itensCarrinho.map(([id, qty]) => {
@@ -259,22 +284,32 @@ function TabCaixa({ cardapio, onVenda }) {
               return item ? (
                 <div key={id} className="flex justify-between text-sm text-tonha-brown">
                   <span>{qty}× {item.nome}</span>
-                  <span className="font-medium">{formatBRL(qty * item.preco)}</span>
+                  <span className="font-medium">{modoCortesia ? 'cortesia' : formatBRL(qty * item.preco)}</span>
                 </div>
               ) : null
             })}
             <div className="border-t border-tonha-sand pt-2 flex justify-between font-bold text-tonha-brown">
               <span>Total</span>
-              <span className="text-tonha-terra">{formatBRL(total)}</span>
+              <span className={modoCortesia ? 'text-tonha-sky' : 'text-tonha-terra'}>
+                {modoCortesia ? 'Cortesia' : formatBRL(total)}
+              </span>
             </div>
           </div>
         )}
         <button
           onClick={registrar}
           disabled={itensCarrinho.length === 0 || registrando}
-          className={`btn-primary w-full transition-all ${ok ? 'bg-green-600 border-green-600' : ''}`}
+          className={`w-full transition-all btn-primary ${
+            ok ? 'bg-green-600 border-green-600' :
+            modoCortesia && itensCarrinho.length > 0 ? 'bg-tonha-sky border-tonha-sky' : ''
+          }`}
         >
-          {ok ? <><Check size={16} /> Registrado!</> : registrando ? 'Registrando...' : itensCarrinho.length === 0 ? 'Selecione os itens' : `Registrar venda · ${formatBRL(total)}`}
+          {ok
+            ? <><Check size={16} /> Registrado!</>
+            : registrando ? 'Registrando...'
+            : itensCarrinho.length === 0 ? 'Selecione os itens'
+            : modoCortesia ? `Registrar cortesia`
+            : `Registrar venda · ${formatBRL(total)}`}
         </button>
       </div>
     </div>
@@ -357,8 +392,11 @@ function TabRelatorio({ summary, vendas, onReload }) {
             {vendas.map(v => (
               <div key={v.id} className="flex items-center gap-3 px-4 py-2.5">
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm text-tonha-brown font-medium">{v.quantidade}× {v.nome_item}</p>
-                  <p className="text-xs text-tonha-brown/40">{new Date(v.created_at).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })} · {formatBRL(v.total)}</p>
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm text-tonha-brown font-medium">{v.quantidade}× {v.nome_item}</p>
+                    {v.cortesia ? <span className="text-xs px-1.5 py-0.5 rounded-full bg-tonha-sky/15 text-tonha-sky font-medium">cortesia</span> : null}
+                  </div>
+                  <p className="text-xs text-tonha-brown/40">{new Date(v.created_at).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })} · {v.cortesia ? '–' : formatBRL(v.total)}</p>
                 </div>
                 <button
                   onClick={() => excluir(v.id)}

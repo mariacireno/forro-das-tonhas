@@ -114,6 +114,8 @@ db.exec(`
   );
 `)
 
+try { db.exec("ALTER TABLE vendas_bar ADD COLUMN cortesia INTEGER DEFAULT 0") } catch (_) {}
+
 // Check-in por ingresso individual
 db.exec(`
   CREATE TABLE IF NOT EXISTS ticket_checkins (

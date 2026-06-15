@@ -75,6 +75,6 @@ export const api = {
   deleteItemCardapio: (id) => req(`/bar/cardapio/${id}`, { method: 'DELETE' }),
   getVendasBar: () => req('/bar/vendas'),
   getBarSummary: () => req('/bar/summary'),
-  registrarVendaBar: (itens) => req('/bar/vendas', { method: 'POST', body: JSON.stringify({ itens }) }),
+  registrarVendaBar: (itens, cortesia = false) => req('/bar/vendas', { method: 'POST', body: JSON.stringify({ itens, cortesia }) }),
   deletarVendaBar: (id) => req(`/bar/vendas/${id}`, { method: 'DELETE' }),
 }

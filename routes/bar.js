@@ -52,11 +52,12 @@ router.get('/vendas', (req, res) => {
 router.get('/summary', (req, res) => {
   const porItem = db.prepare(`
     SELECT
-      item_id, nome_item, categoria,
+      item_id, nome_item, cardapio.categoria,
       SUM(quantidade) AS qtd_total,
-      SUM(total) AS receita,
+      SUM(CASE WHEN cortesia=0 THEN total ELSE 0 END) AS receita,
       SUM(quantidade * custo_unitario) AS custo_total,
-      SUM(total - quantidade * custo_unitario) AS lucro
+      SUM(CASE WHEN cortesia=0 THEN total - quantidade * custo_unitario ELSE -quantidade * custo_unitario END) AS lucro,
+      SUM(CASE WHEN cortesia=1 THEN quantidade ELSE 0 END) AS qtd_cortesia
     FROM vendas_bar
     JOIN cardapio ON cardapio.id = vendas_bar.item_id
     GROUP BY item_id
@@ -65,9 +66,9 @@ router.get('/summary', (req, res) => {
 
   const totais = db.prepare(`
     SELECT
-      SUM(total) AS receita,
+      SUM(CASE WHEN cortesia=0 THEN total ELSE 0 END) AS receita,
       SUM(quantidade * custo_unitario) AS custo_total,
-      SUM(total - quantidade * custo_unitario) AS lucro,
+      SUM(CASE WHEN cortesia=0 THEN total - quantidade * custo_unitario ELSE -quantidade * custo_unitario END) AS lucro,
       SUM(quantidade) AS qtd_total
     FROM vendas_bar
   `).get()
@@ -76,14 +77,14 @@ router.get('/summary', (req, res) => {
 })
 
 router.post('/vendas', (req, res) => {
-  const { itens } = req.body
+  const { itens, cortesia = false } = req.body
   if (!Array.isArray(itens) || itens.length === 0)
     return res.status(400).json({ error: 'Nenhum item informado' })
 
-  const gerarReceita = getConf('bar_gerar_receita') === '1'
+  const gerarReceita = !cortesia && getConf('bar_gerar_receita') === '1'
 
   const insVenda = db.prepare(
-    'INSERT INTO vendas_bar (id, item_id, nome_item, quantidade, preco_unitario, custo_unitario, total) VALUES (?, ?, ?, ?, ?, ?, ?)'
+    'INSERT INTO vendas_bar (id, item_id, nome_item, quantidade, preco_unitario, custo_unitario, total, cortesia) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
   )
   const insTx = gerarReceita
     ? db.prepare("INSERT INTO transactions (id, tipo, categoria, valor, descricao) VALUES (?, 'receita', 'bar', ?, ?)")
@@ -97,7 +98,7 @@ router.post('/vendas', (req, res) => {
       const qty = parseInt(quantidade) || 1
       const total = qty * item.preco
       const id = uuidv4()
-      insVenda.run(id, item.id, item.nome, qty, item.preco, item.custo, total)
+      insVenda.run(id, item.id, item.nome, qty, item.preco, item.custo, total, cortesia ? 1 : 0)
       if (insTx) insTx.run(uuidv4(), total, `${qty}× ${item.nome} (bar)`)
       registros.push({ id, item, qty, total })
     }
