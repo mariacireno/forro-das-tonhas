@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Plus, Trash2, Ticket, Banknote, Settings, ChevronDown, Check, X, Search, ScanLine, Download } from 'lucide-react'
-import { api } from '../api'
+import { api, getEventoId } from '../api'
 import Modal from '../components/Modal'
 import { formatBRL, formatDate } from '../utils/format'
 
@@ -163,7 +163,7 @@ function VendasOnline() {
   const pendentes = vendas.filter(v => v.status === 'pendente')
   const pagas = vendas.filter(v => v.status === 'pago')
   const totalConfirmado = pagas.reduce((s, v) => s + (v.valor_total || 0), 0)
-  const linkPublico = `${window.location.origin}/venda`
+  const linkPublico = `${window.location.origin}/venda/${getEventoId()}`
 
   if (loading) return <div className="text-tonha-brown/50 py-6 text-center">Carregando...</div>
 

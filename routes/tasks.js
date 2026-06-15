@@ -4,14 +4,17 @@ const { v4: uuidv4 } = require('uuid');
 const db = require('../database');
 
 router.get('/', (req, res) => {
+  const eventoId = req.eventoId
+  if (!eventoId) return res.json([])
   const tasks = db.prepare(`
     SELECT * FROM tasks
+    WHERE evento_id=?
     ORDER BY
       CASE status WHEN 'em_andamento' THEN 0 WHEN 'pendente' THEN 1 WHEN 'concluida' THEN 2 ELSE 3 END,
       urgente DESC,
       prazo ASC,
       created_at DESC
-  `).all();
+  `).all(eventoId);
   res.json(tasks);
 });
 
@@ -19,11 +22,12 @@ router.post('/', (req, res) => {
   const { titulo, categoria, responsavel, prazo, status, urgente, observacoes } = req.body;
   if (!titulo) return res.status(400).json({ error: 'Título obrigatório' });
 
+  const eventoId = req.eventoId
   const id = uuidv4();
   db.prepare(`
-    INSERT INTO tasks (id, titulo, categoria, responsavel, prazo, status, urgente, observacoes)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-  `).run(id, titulo, categoria || 'geral', responsavel || null, prazo || null, status || 'pendente', urgente ? 1 : 0, observacoes || null);
+    INSERT INTO tasks (id, titulo, categoria, responsavel, prazo, status, urgente, observacoes, evento_id)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(id, titulo, categoria || 'geral', responsavel || null, prazo || null, status || 'pendente', urgente ? 1 : 0, observacoes || null, eventoId);
 
   res.status(201).json(db.prepare('SELECT * FROM tasks WHERE id = ?').get(id));
 });

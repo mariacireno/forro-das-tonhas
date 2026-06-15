@@ -9,6 +9,8 @@ const PORT = process.env.PORT || 3001;
 app.use(cors());
 app.use(express.json());
 
+app.use((req, res, next) => { req.eventoId = req.headers['x-evento-id'] || null; next() })
+
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || ''
 app.use((req, res, next) => {
   if (!ADMIN_PASSWORD) return next()
@@ -23,6 +25,7 @@ app.use((req, res, next) => {
   next()
 })
 
+app.use('/api/eventos', require('./routes/eventos'));
 app.use('/api/tasks', require('./routes/tasks'));
 app.use('/api/tasks/:taskId/checklist', require('./routes/checklist'));
 app.use('/api/transactions', require('./routes/transactions'));

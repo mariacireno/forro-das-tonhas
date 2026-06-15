@@ -1,9 +1,20 @@
 const BASE = '/api'
 
+let _eventoId = localStorage.getItem('eventoId') || ''
+export function setEventoId(id) {
+  _eventoId = id
+  localStorage.setItem('eventoId', id)
+}
+export function getEventoId() { return _eventoId }
+
 async function req(path, options = {}) {
   const pwd = sessionStorage.getItem('adminPwd') || ''
   const res = await fetch(`${BASE}${path}`, {
-    headers: { 'Content-Type': 'application/json', 'x-admin-password': pwd },
+    headers: {
+      'Content-Type': 'application/json',
+      'x-admin-password': pwd,
+      ...(_eventoId ? { 'x-evento-id': _eventoId } : {}),
+    },
     ...options,
   })
   if (!res.ok) {
@@ -14,6 +25,12 @@ async function req(path, options = {}) {
 }
 
 export const api = {
+  // Eventos
+  getEventos: () => req('/eventos'),
+  createEvento: (data) => req('/eventos', { method: 'POST', body: JSON.stringify(data) }),
+  updateEvento: (id, data) => req(`/eventos/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  deleteEvento: (id) => req(`/eventos/${id}`, { method: 'DELETE' }),
+
   // Tasks
   getTasks: () => req('/tasks'),
   createTask: (data) => req('/tasks', { method: 'POST', body: JSON.stringify(data) }),
@@ -33,7 +50,12 @@ export const api = {
   getTicketSummary: () => req('/tickets/summary'),
   getPortariaPdf: async (id) => {
     const pwd = sessionStorage.getItem('adminPwd') || ''
-    const res = await fetch(`/api/tickets/${id}/pdf`, { headers: { 'x-admin-password': pwd } })
+    const res = await fetch(`/api/tickets/${id}/pdf`, {
+      headers: {
+        'x-admin-password': pwd,
+        ...(_eventoId ? { 'x-evento-id': _eventoId } : {}),
+      },
+    })
     if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.error || 'Erro ao gerar PDF') }
     return res.blob()
   },

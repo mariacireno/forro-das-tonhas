@@ -167,4 +167,70 @@ const seedConfig = db.prepare('INSERT OR IGNORE INTO config (chave, valor) VALUE
   ['bar_gerar_receita', '0'],
 ].forEach(([k, v]) => seedConfig.run(k, v))
 
+// ── Tabela de eventos (multi-evento) ──
+db.exec(`
+  CREATE TABLE IF NOT EXISTS eventos (
+    id TEXT PRIMARY KEY,
+    nome TEXT NOT NULL,
+    data TEXT NOT NULL,
+    descricao TEXT,
+    local TEXT DEFAULT 'Olinda, PE',
+    hora_inicio TEXT DEFAULT '16:00',
+    hora_fim TEXT DEFAULT '22:00',
+    pix_chave TEXT DEFAULT '',
+    pix_nome TEXT DEFAULT 'Forro das Tonhas',
+    pix_cidade TEXT DEFAULT 'Brasil',
+    valor_lote_promo TEXT DEFAULT '',
+    valor_lote2 TEXT DEFAULT '',
+    valor_mesa TEXT DEFAULT '',
+    limite_por_compra INTEGER DEFAULT 4,
+    estoque_lote_promo INTEGER DEFAULT 0,
+    estoque_lote2 INTEGER DEFAULT 0,
+    estoque_mesa INTEGER DEFAULT 0,
+    vendas_ativas INTEGER DEFAULT 0,
+    limite_cortesia INTEGER DEFAULT 60,
+    bar_gerar_receita INTEGER DEFAULT 0,
+    created_at TEXT DEFAULT (datetime('now'))
+  )
+`)
+
+// Migração: adiciona evento_id às tabelas operacionais
+try { db.exec("ALTER TABLE transactions ADD COLUMN evento_id TEXT") } catch(_) {}
+try { db.exec("ALTER TABLE tickets ADD COLUMN evento_id TEXT") } catch(_) {}
+try { db.exec("ALTER TABLE ticket_vendas ADD COLUMN evento_id TEXT") } catch(_) {}
+try { db.exec("ALTER TABLE vendas_bar ADD COLUMN evento_id TEXT") } catch(_) {}
+try { db.exec("ALTER TABLE tasks ADD COLUMN evento_id TEXT") } catch(_) {}
+try { db.exec("ALTER TABLE orcamentos ADD COLUMN evento_id TEXT") } catch(_) {}
+
+// Seed dos eventos e migração dos dados existentes
+;(() => {
+  const EVT_13JUN = 'evt-2026-06-13'
+  const EVT_24JUN = 'evt-2026-06-24'
+
+  // Lê valores de config para semear no primeiro evento
+  const cfgGet = (k) => db.prepare('SELECT valor FROM config WHERE chave=?').get(k)?.valor ?? ''
+
+  db.prepare(`INSERT OR IGNORE INTO eventos (id, nome, data, local, hora_inicio, hora_fim, pix_chave, pix_nome, pix_cidade, valor_lote_promo, valor_lote2, valor_mesa, limite_por_compra, estoque_lote_promo, estoque_lote2, estoque_mesa, vendas_ativas, limite_cortesia, bar_gerar_receita) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`)
+    .run(EVT_13JUN, 'Forró das Tonhas', '2026-06-13', 'Olinda, PE', '16:00', '22:00',
+      cfgGet('pix_chave'), cfgGet('pix_nome') || 'Forro das Tonhas', cfgGet('pix_cidade') || 'Brasil',
+      cfgGet('valor_lote_promo'), cfgGet('valor_lote2'), cfgGet('valor_mesa'),
+      parseInt(cfgGet('limite_por_compra')) || 4,
+      parseInt(cfgGet('estoque_lote_promo')) || 0, parseInt(cfgGet('estoque_lote2')) || 0, parseInt(cfgGet('estoque_mesa')) || 0,
+      cfgGet('vendas_ativas') === '1' ? 1 : 0,
+      parseInt(cfgGet('limite_cortesia')) || 60,
+      cfgGet('bar_gerar_receita') === '1' ? 1 : 0
+    )
+
+  db.prepare(`INSERT OR IGNORE INTO eventos (id, nome, data, local, hora_inicio, hora_fim) VALUES (?,?,?,?,?,?)`)
+    .run(EVT_24JUN, 'Forró das Tonhas', '2026-06-24', 'Olinda, PE', '16:00', '22:00')
+
+  // Migra dados existentes para o evento de 13/06
+  db.prepare("UPDATE transactions SET evento_id=? WHERE evento_id IS NULL").run(EVT_13JUN)
+  db.prepare("UPDATE tickets SET evento_id=? WHERE evento_id IS NULL").run(EVT_13JUN)
+  db.prepare("UPDATE ticket_vendas SET evento_id=? WHERE evento_id IS NULL").run(EVT_13JUN)
+  db.prepare("UPDATE vendas_bar SET evento_id=? WHERE evento_id IS NULL").run(EVT_13JUN)
+  db.prepare("UPDATE tasks SET evento_id=? WHERE evento_id IS NULL").run(EVT_13JUN)
+  db.prepare("UPDATE orcamentos SET evento_id=? WHERE evento_id IS NULL").run(EVT_13JUN)
+})()
+
 module.exports = db;

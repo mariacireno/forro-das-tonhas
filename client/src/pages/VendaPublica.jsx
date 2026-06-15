@@ -1,4 +1,5 @@
 import { useState, useEffect, Fragment } from 'react'
+import { useParams } from 'react-router-dom'
 import { formatBRL } from '../utils/format'
 import { Bandeirinhas, Star, Sparkle, SunRays, Sanfona } from '../components/Decor'
 
@@ -620,6 +621,7 @@ function StepConfirmado({ resultado }) {
 /* ── Main ── */
 
 export default function VendaPublica() {
+  const { eventoId } = useParams()
   const [config, setConfig] = useState({})
   const [loadingConfig, setLoadingConfig] = useState(true)
   const [qty, setQty] = useState({ cortesia: 0 })
@@ -630,11 +632,11 @@ export default function VendaPublica() {
   const [erro, setErro] = useState('')
 
   useEffect(() => {
-    fetch('/api/config')
+    fetch(`/api/config?evento_id=${eventoId || ''}`)
       .then(r => r.json())
       .then(c => { setConfig(c); setLoadingConfig(false) })
       .catch(() => setLoadingConfig(false))
-  }, [])
+  }, [eventoId])
 
   // Sincroniza botão Voltar do browser com os steps
   useEffect(() => {
@@ -670,6 +672,7 @@ export default function VendaPublica() {
           email: form.email.trim(),
           telefone: form.telefone.trim() || undefined,
           quantidade_lote_promo: qty.cortesia,
+          evento_id: eventoId,
         }),
       })
       const data = await res.json()

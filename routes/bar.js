@@ -3,9 +3,7 @@ const router = express.Router()
 const { v4: uuidv4 } = require('uuid')
 const db = require('../database')
 
-const getConf = (k) => db.prepare('SELECT valor FROM config WHERE chave = ?').get(k)?.valor ?? ''
-
-// --- Cardápio ---
+// --- Cardápio (global, sem evento_id) ---
 
 router.get('/cardapio', (req, res) => {
   res.json(db.prepare('SELECT * FROM cardapio ORDER BY categoria, nome COLLATE NOCASE').all())
@@ -46,10 +44,15 @@ router.delete('/cardapio/:id', (req, res) => {
 // --- Vendas do bar ---
 
 router.get('/vendas', (req, res) => {
-  res.json(db.prepare('SELECT * FROM vendas_bar ORDER BY created_at DESC').all())
+  const eventoId = req.eventoId
+  if (!eventoId) return res.json([])
+  res.json(db.prepare('SELECT * FROM vendas_bar WHERE evento_id=? ORDER BY created_at DESC').all(eventoId))
 })
 
 router.get('/summary', (req, res) => {
+  const eventoId = req.eventoId
+  if (!eventoId) return res.json({ porItem: [], totais: { receita: 0, custo_total: 0, lucro: 0, qtd_total: 0 } })
+
   const porItem = db.prepare(`
     SELECT
       item_id, nome_item, cardapio.categoria,
@@ -60,9 +63,10 @@ router.get('/summary', (req, res) => {
       SUM(CASE WHEN cortesia=1 THEN quantidade ELSE 0 END) AS qtd_cortesia
     FROM vendas_bar
     JOIN cardapio ON cardapio.id = vendas_bar.item_id
+    WHERE vendas_bar.evento_id=?
     GROUP BY item_id
     ORDER BY receita DESC
-  `).all()
+  `).all(eventoId)
 
   const totais = db.prepare(`
     SELECT
@@ -71,7 +75,8 @@ router.get('/summary', (req, res) => {
       SUM(CASE WHEN cortesia=0 THEN total - quantidade * custo_unitario ELSE -quantidade * custo_unitario END) AS lucro,
       SUM(quantidade) AS qtd_total
     FROM vendas_bar
-  `).get()
+    WHERE evento_id=?
+  `).get(eventoId)
 
   res.json({ porItem, totais })
 })
@@ -81,13 +86,15 @@ router.post('/vendas', (req, res) => {
   if (!Array.isArray(itens) || itens.length === 0)
     return res.status(400).json({ error: 'Nenhum item informado' })
 
-  const gerarReceita = !cortesia && getConf('bar_gerar_receita') === '1'
+  const eventoId = req.eventoId
+  const evento = eventoId ? db.prepare('SELECT * FROM eventos WHERE id=?').get(eventoId) || {} : {}
+  const gerarReceita = !cortesia && evento.bar_gerar_receita == 1
 
   const insVenda = db.prepare(
-    'INSERT INTO vendas_bar (id, item_id, nome_item, quantidade, preco_unitario, custo_unitario, total, cortesia) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
+    'INSERT INTO vendas_bar (id, item_id, nome_item, quantidade, preco_unitario, custo_unitario, total, cortesia, evento_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
   )
   const insTx = gerarReceita
-    ? db.prepare("INSERT INTO transactions (id, tipo, categoria, valor, descricao) VALUES (?, 'receita', 'bar', ?, ?)")
+    ? db.prepare("INSERT INTO transactions (id, tipo, categoria, valor, descricao, evento_id) VALUES (?, 'receita', 'bar', ?, ?, ?)")
     : null
 
   const venda = db.transaction(() => {
@@ -98,8 +105,8 @@ router.post('/vendas', (req, res) => {
       const qty = parseInt(quantidade) || 1
       const total = qty * item.preco
       const id = uuidv4()
-      insVenda.run(id, item.id, item.nome, qty, item.preco, item.custo, total, cortesia ? 1 : 0)
-      if (insTx) insTx.run(uuidv4(), total, `${qty}× ${item.nome} (bar)`)
+      insVenda.run(id, item.id, item.nome, qty, item.preco, item.custo, total, cortesia ? 1 : 0, eventoId)
+      if (insTx) insTx.run(uuidv4(), total, `${qty}× ${item.nome} (bar)`, eventoId)
       registros.push({ id, item, qty, total })
     }
     return registros

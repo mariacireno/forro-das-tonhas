@@ -7,19 +7,23 @@ const { sendConfirmacaoIngresso, sendNotificacaoNovaVenda } = require('../utils/
 const { buildTicketPdf } = require('../utils/pdf')
 
 // --- helpers ---
-const getConf = (k) => db.prepare('SELECT valor FROM config WHERE chave = ?').get(k)?.valor ?? ''
+const getEvento = (id) => db.prepare('SELECT * FROM eventos WHERE id=?').get(id) || {}
 
 // --- portaria (tickets) ---
 
 router.get('/summary', (req, res) => {
-  const total = db.prepare('SELECT COALESCE(SUM(quantidade),0) as qty, COALESCE(SUM(quantidade*valor_unitario),0) as receita FROM tickets').get()
-  const porTipo = db.prepare('SELECT tipo, SUM(quantidade) as qty, SUM(quantidade*valor_unitario) as receita FROM tickets GROUP BY tipo').all()
-  const porCanal = db.prepare('SELECT canal, SUM(quantidade) as qty FROM tickets GROUP BY canal').all()
+  const eventoId = req.eventoId
+  if (!eventoId) return res.json({ qty: 0, receita: 0, porTipo: [], porCanal: [] })
+  const total = db.prepare('SELECT COALESCE(SUM(quantidade),0) as qty, COALESCE(SUM(quantidade*valor_unitario),0) as receita FROM tickets WHERE evento_id=?').get(eventoId)
+  const porTipo = db.prepare('SELECT tipo, SUM(quantidade) as qty, SUM(quantidade*valor_unitario) as receita FROM tickets WHERE evento_id=? GROUP BY tipo').all(eventoId)
+  const porCanal = db.prepare('SELECT canal, SUM(quantidade) as qty FROM tickets WHERE evento_id=? GROUP BY canal').all(eventoId)
   res.json({ ...total, porTipo, porCanal })
 })
 
 router.get('/', (req, res) => {
-  res.json(db.prepare('SELECT * FROM tickets ORDER BY created_at DESC').all())
+  const eventoId = req.eventoId
+  if (!eventoId) return res.json([])
+  res.json(db.prepare('SELECT * FROM tickets WHERE evento_id=? ORDER BY created_at DESC').all(eventoId))
 })
 
 router.post('/', (req, res) => {
@@ -28,16 +32,17 @@ router.post('/', (req, res) => {
     return res.status(400).json({ error: 'Tipo, quantidade e valor unitário obrigatórios' })
   }
 
+  const eventoId = req.eventoId
   const id = uuidv4()
   const qty = parseInt(quantidade)
   const unit = parseFloat(valor_unitario)
   const total = qty * unit
 
-  db.prepare('INSERT INTO tickets (id, tipo, quantidade, valor_unitario, canal, data) VALUES (?, ?, ?, ?, ?, ?)')
-    .run(id, tipo, qty, unit, canal || 'portaria', data || null)
+  db.prepare('INSERT INTO tickets (id, tipo, quantidade, valor_unitario, canal, data, evento_id) VALUES (?, ?, ?, ?, ?, ?, ?)')
+    .run(id, tipo, qty, unit, canal || 'portaria', data || null, eventoId)
 
-  db.prepare("INSERT INTO transactions (id, tipo, categoria, valor, descricao, data) VALUES (?, 'receita', 'ingressos', ?, ?, ?)")
-    .run(uuidv4(), total, `${qty}x ingresso ${tipo} (${canal || 'portaria'})`, data || null)
+  db.prepare("INSERT INTO transactions (id, tipo, categoria, valor, descricao, data, evento_id) VALUES (?, 'receita', 'ingressos', ?, ?, ?, ?)")
+    .run(uuidv4(), total, `${qty}x ingresso ${tipo} (${canal || 'portaria'})`, data || null, eventoId)
 
   const insC = db.prepare('INSERT INTO ticket_checkins (id, venda_id, tipo, nome, seq) VALUES (?, ?, ?, ?, ?)')
   for (let i = 0; i < qty; i++) insC.run(uuidv4(), id, tipo, 'Portaria', i + 1)
@@ -77,7 +82,9 @@ router.delete('/:id', (req, res) => {
 // --- vendas online (ticket_vendas) ---
 
 router.get('/vendas', (req, res) => {
-  res.json(db.prepare('SELECT * FROM ticket_vendas ORDER BY created_at DESC').all())
+  const eventoId = req.eventoId
+  if (!eventoId) return res.json([])
+  res.json(db.prepare('SELECT * FROM ticket_vendas WHERE evento_id=? ORDER BY created_at DESC').all(eventoId))
 })
 
 router.get('/vendas/:id', (req, res) => {
@@ -87,8 +94,11 @@ router.get('/vendas/:id', (req, res) => {
 })
 
 router.post('/venda', (req, res) => {
-  if (getConf('vendas_ativas') === '0')
-    return res.status(503).json({ error: 'Vendas temporariamente suspensas.' })
+  const eventoId = req.body.evento_id || req.eventoId
+  const evento = getEvento(eventoId)
+
+  if (!eventoId || !evento.id) return res.status(400).json({ error: 'Evento não encontrado' })
+  if (String(evento.vendas_ativas) === '0') return res.status(503).json({ error: 'Vendas temporariamente suspensas.' })
 
   const { nome, email, cpf, telefone, quantidade_lote_promo } = req.body
   if (!nome || !email) return res.status(400).json({ error: 'Nome e email são obrigatórios' })
@@ -96,21 +106,25 @@ router.post('/venda', (req, res) => {
   const qty = parseInt(quantidade_lote_promo) || 0
   if (qty === 0) return res.status(400).json({ error: 'Selecione pelo menos 1 ingresso' })
 
-  const limite = parseInt(getConf('limite_por_compra')) || 4
+  const limite = parseInt(evento.limite_por_compra) || 4
   if (qty > limite) return res.status(400).json({ error: `Máximo de ${limite} por pedido` })
 
-  // Verifica capacidade global de cortesias
-  const limiteCortesia = parseInt(getConf('limite_cortesia')) || 60
-  const totalCheckins = db.prepare('SELECT COUNT(*) AS n FROM ticket_checkins').get().n
+  // Verifica capacidade global de cortesias para o evento
+  const limiteCortesia = parseInt(evento.limite_cortesia) || 60
+  const totalCheckins = db.prepare(`
+    SELECT COUNT(*) AS n FROM ticket_checkins c
+    JOIN ticket_vendas v ON c.venda_id = v.id
+    WHERE v.evento_id=?
+  `).get(eventoId).n
   const disponiveis = limiteCortesia - totalCheckins
   if (disponiveis <= 0) return res.status(400).json({ error: 'Ingressos esgotados' })
   if (qty > disponiveis) return res.status(400).json({ error: `Restam apenas ${disponiveis} ${disponiveis === 1 ? 'ingresso' : 'ingressos'}` })
 
   const id = uuidv4()
   db.prepare(`
-    INSERT INTO ticket_vendas (id, nome, email, cpf, telefone, tipo, quantidade, quantidade_lote_promo, valor_total, status)
-    VALUES (?, ?, ?, ?, ?, 'cortesia', ?, ?, 0, 'pago')
-  `).run(id, nome, email, cpf || null, telefone || null, qty, qty)
+    INSERT INTO ticket_vendas (id, nome, email, cpf, telefone, tipo, quantidade, quantidade_lote_promo, valor_total, status, evento_id)
+    VALUES (?, ?, ?, ?, ?, 'cortesia', ?, ?, 0, 'pago', ?)
+  `).run(id, nome, email, cpf || null, telefone || null, qty, qty, eventoId)
 
   const insC = db.prepare('INSERT INTO ticket_checkins (id, venda_id, tipo, nome, seq) VALUES (?, ?, ?, ?, ?)')
   for (let i = 0; i < qty; i++) insC.run(uuidv4(), id, 'Cortesia', nome, i + 1)
@@ -156,8 +170,8 @@ router.patch('/vendas/:id/confirmar', (req, res) => {
   if (!partes.length && venda.quantidade_meia > 0) partes.push(`${venda.quantidade_meia}x meia`)
   const descIngresso = (partes.length ? partes.join(' + ') : `${venda.quantidade}x ${venda.tipo}`) + ` - ${venda.nome}`
 
-  db.prepare("INSERT INTO transactions (id, tipo, categoria, valor, descricao, data) VALUES (?, 'receita', 'ingressos', ?, ?, datetime('now'))")
-    .run(uuidv4(), venda.valor_total, descIngresso)
+  db.prepare("INSERT INTO transactions (id, tipo, categoria, valor, descricao, data, evento_id) VALUES (?, 'receita', 'ingressos', ?, ?, datetime('now'), ?)")
+    .run(uuidv4(), venda.valor_total, descIngresso, venda.evento_id)
 
   // Cria entradas individuais de check-in por ingresso
   const insC = db.prepare('INSERT INTO ticket_checkins (id, venda_id, tipo, nome, seq) VALUES (?, ?, ?, ?, ?)')
@@ -176,12 +190,15 @@ router.patch('/vendas/:id/confirmar', (req, res) => {
 
 // Check-in individual por ingresso
 router.get('/checkins', (req, res) => {
+  const eventoId = req.eventoId
+  if (!eventoId) return res.json([])
   const checkins = db.prepare(`
     SELECT c.*, v.email
     FROM ticket_checkins c
     JOIN ticket_vendas v ON c.venda_id = v.id
+    WHERE v.evento_id=?
     ORDER BY c.nome COLLATE NOCASE, c.venda_id, c.seq
-  `).all()
+  `).all(eventoId)
   res.json(checkins)
 })
 
