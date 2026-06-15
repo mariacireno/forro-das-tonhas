@@ -282,11 +282,17 @@ function TabCaixa({ cardapio, onVenda }) {
 }
 
 /* ── Aba Relatório ── */
-function TabRelatorio({ summary }) {
+function TabRelatorio({ summary, vendas, onReload }) {
   if (!summary) return <div className="text-center py-12 text-tonha-brown/40 text-sm">Carregando...</div>
 
   const { porItem, totais } = summary
   const temDados = porItem?.length > 0
+
+  const excluir = async (id) => {
+    if (!confirm('Remover este lançamento do estoque?')) return
+    await api.deletarVendaBar(id)
+    onReload()
+  }
 
   return (
     <div className="space-y-4">
@@ -295,7 +301,7 @@ function TabRelatorio({ summary }) {
         {[
           { label: 'Receita bar', value: formatBRL(totais?.receita || 0), color: 'text-tonha-sage' },
           { label: 'Custo total', value: formatBRL(totais?.custo_total || 0), color: 'text-red-500' },
-          { label: 'Lucro bar', value: formatBRL(totais?.lucro || 0), color: 'text-tonha-terra' },
+          { label: 'Lucro bar',   value: formatBRL(totais?.lucro || 0),    color: 'text-tonha-terra' },
         ].map(({ label, value, color }) => (
           <div key={label} className="card text-center">
             <p className="text-xs text-tonha-brown/50 mb-1">{label}</p>
@@ -305,7 +311,7 @@ function TabRelatorio({ summary }) {
       </div>
 
       {/* Por item */}
-      {temDados ? (
+      {temDados && (
         <div className="card overflow-hidden p-0">
           <div className="px-4 py-3 border-b border-tonha-sand">
             <p className="font-semibold text-sm text-tonha-brown flex items-center gap-2"><TrendingUp size={15} /> Por item</p>
@@ -329,7 +335,6 @@ function TabRelatorio({ summary }) {
                     <span>Receita: {formatBRL(item.receita)}</span>
                     <span>Custo: {formatBRL(item.custo_total)}</span>
                   </div>
-                  {/* Barra de margem */}
                   <div className="mt-2 h-1.5 bg-tonha-sand rounded-full overflow-hidden">
                     <div className="h-full bg-tonha-terra rounded-full" style={{ width: `${Math.max(0, Math.min(100, margem))}%` }} />
                   </div>
@@ -338,8 +343,37 @@ function TabRelatorio({ summary }) {
             })}
           </div>
         </div>
-      ) : (
-        <div className="text-center py-12 text-tonha-brown/40">
+      )}
+
+      {/* Histórico de lançamentos */}
+      <div className="card overflow-hidden p-0">
+        <div className="px-4 py-3 border-b border-tonha-sand">
+          <p className="font-semibold text-sm text-tonha-brown">Histórico de lançamentos</p>
+        </div>
+        {vendas.length === 0 ? (
+          <p className="text-center py-8 text-sm text-tonha-brown/40">Nenhum lançamento ainda.</p>
+        ) : (
+          <div className="divide-y divide-tonha-sand">
+            {vendas.map(v => (
+              <div key={v.id} className="flex items-center gap-3 px-4 py-2.5">
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm text-tonha-brown font-medium">{v.quantidade}× {v.nome_item}</p>
+                  <p className="text-xs text-tonha-brown/40">{new Date(v.created_at).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })} · {formatBRL(v.total)}</p>
+                </div>
+                <button
+                  onClick={() => excluir(v.id)}
+                  className="p-1.5 rounded-lg text-tonha-brown/30 hover:text-red-500 hover:bg-red-50 transition-colors shrink-0"
+                >
+                  <Trash2 size={14} />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {!temDados && vendas.length === 0 && (
+        <div className="text-center py-8 text-tonha-brown/40">
           <TrendingUp size={32} className="mx-auto mb-2 opacity-40" />
           <p className="text-sm">Nenhuma venda registrada ainda.</p>
         </div>
@@ -359,16 +393,19 @@ export default function Bar() {
   const [tab, setTab] = useState('caixa')
   const [cardapio, setCardapio] = useState([])
   const [summary, setSummary] = useState(null)
+  const [vendas, setVendas] = useState([])
   const [loading, setLoading] = useState(true)
   const [gerarReceita, setGerarReceita] = useState(false)
   const [toggling, setToggling] = useState(false)
 
   const loadCardapio = () => api.getCardapio().then(setCardapio)
   const loadSummary = () => api.getBarSummary().then(setSummary)
+  const loadVendas = () => api.getVendasBar().then(setVendas)
 
   const load = () => Promise.all([
     loadCardapio(),
     loadSummary(),
+    loadVendas(),
     api.getConfig().then(c => setGerarReceita(c.bar_gerar_receita === '1')),
   ]).finally(() => setLoading(false))
 
@@ -427,9 +464,9 @@ export default function Bar() {
         ))}
       </div>
 
-      {tab === 'caixa'     && <TabCaixa    cardapio={cardapio} onVenda={() => { loadSummary(); loadCardapio() }} />}
+      {tab === 'caixa'     && <TabCaixa    cardapio={cardapio} onVenda={() => { loadSummary(); loadVendas() }} />}
       {tab === 'cardapio'  && <TabCardapio cardapio={cardapio} onReload={loadCardapio} />}
-      {tab === 'relatorio' && <TabRelatorio summary={summary} />}
+      {tab === 'relatorio' && <TabRelatorio summary={summary} vendas={vendas} onReload={() => { loadSummary(); loadVendas() }} />}
     </div>
   )
 }
