@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import Sidebar from './components/Sidebar'
 import BottomNav from './components/BottomNav'
+import MobileEventBar from './components/MobileEventBar'
 import Dashboard from './pages/Dashboard'
 import Tarefas from './pages/Tarefas'
 import Financeiro from './pages/Financeiro'
@@ -40,6 +41,8 @@ export default function App() {
                 <div className="hidden md:block">
                   <Sidebar eventoId={eventoId} onEventoChange={handleEventoChange} />
                 </div>
+                <div className="flex-1 flex flex-col min-h-0">
+                <MobileEventBar eventoId={eventoId} onEventoChange={handleEventoChange} />
                 <main key={eventoId} className="flex-1 p-4 md:p-6 overflow-auto pb-20 md:pb-6">
                   <Routes>
                     <Route path="/" element={<Dashboard />} />
@@ -49,6 +52,7 @@ export default function App() {
                     <Route path="/bar" element={<Bar />} />
                   </Routes>
                 </main>
+                </div>
                 <BottomNav />
               </div>
             )
