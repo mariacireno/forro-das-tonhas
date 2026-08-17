@@ -215,32 +215,45 @@ const SOCIA_COLORS = {
   Catarina: 'bg-tonha-sage/20 border-tonha-sage/30',
 }
 
-function Distribuicao({ distribuido, socias, titulo }) {
-  if (!distribuido || distribuido <= 0) return null
-
+function Distribuicao({ distribuido, lucro, socias, titulo }) {
   const temReembolso = Object.values(socias).some(s => (s.reimbursement || 0) > 0)
+  const temResultado = lucro !== undefined && lucro !== 0
+  if (!temResultado && !temReembolso) return null
+
+  const isPrejuizo = (lucro ?? 0) < 0
 
   return (
     <div className="card">
       <div className="flex items-center gap-2 mb-4">
         <Users size={16} className="text-tonha-darksky" />
         <h2 className="font-semibold text-tonha-brown">{titulo}</h2>
-        <span className="text-xs text-tonha-brown/50 ml-1">(33% cada · distribuível: {formatBRL(distribuido)})</span>
+        {!isPrejuizo && distribuido > 0
+          ? <span className="text-xs text-tonha-brown/50 ml-1">(33% cada · distribuível: {formatBRL(distribuido)})</span>
+          : isPrejuizo
+          ? <span className="text-xs text-red-500/70 ml-1">(33% cada · prejuízo: {formatBRL(lucro)})</span>
+          : null
+        }
       </div>
       <div className="grid grid-cols-3 gap-3">
         {['Renata', 'Maria', 'Catarina'].map(name => {
           const dados = socias[name] ?? { share: 0, reimbursement: 0, total: 0 }
+          const shareNegativo = (dados.share ?? 0) < 0
+          const totalNegativo = (dados.total ?? 0) < 0
           return (
             <div key={name} className={`rounded-xl p-3 border text-center ${SOCIA_COLORS[name]}`}>
               <p className="font-semibold text-tonha-brown text-sm">{name}</p>
               <p className="text-xs text-tonha-brown/40 mb-1">33%</p>
-              <p className="text-base font-bold text-tonha-brown">{formatBRL(dados.share)}</p>
+              <p className={`text-base font-bold ${shareNegativo ? 'text-red-600' : 'text-tonha-brown'}`}>
+                {formatBRL(dados.share)}
+              </p>
               {temReembolso && (
                 <div className="mt-2 pt-2 border-t border-black/10 text-xs text-tonha-brown/60 space-y-0.5">
-                  {dados.reimbursement > 0 && (
+                  {(dados.reimbursement ?? 0) > 0 && (
                     <p className="text-green-700">+{formatBRL(dados.reimbursement)} despesas</p>
                   )}
-                  <p className="font-semibold text-tonha-brown text-sm">{formatBRL(dados.total)}</p>
+                  <p className={`font-semibold text-sm ${totalNegativo ? 'text-red-600' : 'text-tonha-brown'}`}>
+                    {formatBRL(dados.total)}
+                  </p>
                 </div>
               )}
             </div>
@@ -249,7 +262,10 @@ function Distribuicao({ distribuido, socias, titulo }) {
       </div>
       {temReembolso && (
         <p className="text-xs text-tonha-brown/40 mt-3 text-center">
-          Total inclui 33% do lucro distribuível + reembolso das despesas pagas do bolso
+          {isPrejuizo
+            ? 'Total = 33% do prejuízo + reembolso das despesas pagas do bolso'
+            : 'Total inclui 33% do lucro distribuível + reembolso das despesas pagas do bolso'
+          }
         </p>
       )}
     </div>
@@ -373,6 +389,7 @@ export default function Financeiro() {
           />
           <Distribuicao
             distribuido={summary?.distribuido}
+            lucro={summary?.lucro}
             socias={summary?.socias ?? {}}
             titulo="Distribuição às sócias"
           />
@@ -397,6 +414,7 @@ export default function Financeiro() {
           />
           <Distribuicao
             distribuido={orcSummary?.distribuido_previsto}
+            lucro={orcSummary?.resultado_previsto}
             socias={orcSummary?.socias_previsto ?? {}}
             titulo="Previsão de distribuição"
           />

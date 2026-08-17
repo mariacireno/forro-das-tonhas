@@ -32,20 +32,28 @@ router.post('/', (req, res) => {
     return res.status(400).json({ error: 'Tipo, quantidade e valor unitário obrigatórios' })
   }
 
-  const eventoId = req.eventoId
-  const id = uuidv4()
   const qty = parseInt(quantidade)
   const unit = parseFloat(valor_unitario)
+
+  if (!Number.isInteger(qty) || qty < 1 || qty > 500) {
+    return res.status(400).json({ error: 'Quantidade deve ser um inteiro entre 1 e 500' })
+  }
+  if (isNaN(unit) || unit < 0 || unit > 100000) {
+    return res.status(400).json({ error: 'Valor unitário deve ser um número positivo' })
+  }
+
+  const eventoId = req.eventoId
+  const id = uuidv4()
   const total = qty * unit
 
-  db.prepare('INSERT INTO tickets (id, tipo, quantidade, valor_unitario, canal, data, evento_id) VALUES (?, ?, ?, ?, ?, ?, ?)')
-    .run(id, tipo, qty, unit, canal || 'portaria', data || null, eventoId)
-
-  db.prepare("INSERT INTO transactions (id, tipo, categoria, valor, descricao, data, evento_id) VALUES (?, 'receita', 'ingressos', ?, ?, ?, ?)")
-    .run(uuidv4(), total, `${qty}x ingresso ${tipo} (${canal || 'portaria'})`, data || null, eventoId)
-
-  const insC = db.prepare('INSERT INTO ticket_checkins (id, venda_id, tipo, nome, seq) VALUES (?, ?, ?, ?, ?)')
-  for (let i = 0; i < qty; i++) insC.run(uuidv4(), id, tipo, 'Portaria', i + 1)
+  db.transaction(() => {
+    db.prepare('INSERT INTO tickets (id, tipo, quantidade, valor_unitario, canal, data, evento_id) VALUES (?, ?, ?, ?, ?, ?, ?)')
+      .run(id, tipo, qty, unit, canal || 'portaria', data || null, eventoId)
+    db.prepare("INSERT INTO transactions (id, tipo, categoria, valor, descricao, data, evento_id) VALUES (?, 'receita', 'ingressos', ?, ?, ?, ?)")
+      .run(uuidv4(), total, `${qty}x ingresso ${tipo} (${canal || 'portaria'})`, data || null, eventoId)
+    const insC = db.prepare('INSERT INTO ticket_checkins (id, venda_id, tipo, nome, seq) VALUES (?, ?, ?, ?, ?)')
+    for (let i = 0; i < qty; i++) insC.run(uuidv4(), id, tipo, 'Portaria', i + 1)
+  })()
 
   res.status(201).json(db.prepare('SELECT * FROM tickets WHERE id = ?').get(id))
 })
@@ -160,8 +168,6 @@ router.patch('/vendas/:id/confirmar', (req, res) => {
   if (!venda) return res.status(404).json({ error: 'Venda não encontrada' })
   if (venda.status === 'pago') return res.status(400).json({ error: 'Venda já confirmada' })
 
-  db.prepare("UPDATE ticket_vendas SET status = 'pago' WHERE id = ?").run(req.params.id)
-
   const partes = []
   if (venda.quantidade_lote_promo > 0) partes.push(`${venda.quantidade_lote_promo}x lote promo`)
   if (venda.quantidade_lote2 > 0) partes.push(`${venda.quantidade_lote2}x 2º lote`)
@@ -170,15 +176,16 @@ router.patch('/vendas/:id/confirmar', (req, res) => {
   if (!partes.length && venda.quantidade_meia > 0) partes.push(`${venda.quantidade_meia}x meia`)
   const descIngresso = (partes.length ? partes.join(' + ') : `${venda.quantidade}x ${venda.tipo}`) + ` - ${venda.nome}`
 
-  db.prepare("INSERT INTO transactions (id, tipo, categoria, valor, descricao, data, evento_id) VALUES (?, 'receita', 'ingressos', ?, ?, datetime('now'), ?)")
-    .run(uuidv4(), venda.valor_total, descIngresso, venda.evento_id)
-
-  // Cria entradas individuais de check-in por ingresso
-  const insC = db.prepare('INSERT INTO ticket_checkins (id, venda_id, tipo, nome, seq) VALUES (?, ?, ?, ?, ?)')
-  let seq = 1
-  for (let i = 0; i < (venda.quantidade_lote_promo || 0); i++) insC.run(uuidv4(), req.params.id, 'Lote Promo', venda.nome, seq++)
-  for (let i = 0; i < (venda.quantidade_lote2 || 0); i++)      insC.run(uuidv4(), req.params.id, '2º Lote',    venda.nome, seq++)
-  for (let i = 0; i < (venda.quantidade_mesa || 0) * 4; i++)   insC.run(uuidv4(), req.params.id, 'Mesa',       venda.nome, seq++)
+  db.transaction(() => {
+    db.prepare("UPDATE ticket_vendas SET status = 'pago' WHERE id = ?").run(req.params.id)
+    db.prepare("INSERT INTO transactions (id, tipo, categoria, valor, descricao, data, evento_id) VALUES (?, 'receita', 'ingressos', ?, ?, datetime('now'), ?)")
+      .run(uuidv4(), venda.valor_total, descIngresso, venda.evento_id)
+    const insC = db.prepare('INSERT INTO ticket_checkins (id, venda_id, tipo, nome, seq) VALUES (?, ?, ?, ?, ?)')
+    let seq = 1
+    for (let i = 0; i < (venda.quantidade_lote_promo || 0); i++) insC.run(uuidv4(), req.params.id, 'Lote Promo', venda.nome, seq++)
+    for (let i = 0; i < (venda.quantidade_lote2 || 0); i++)      insC.run(uuidv4(), req.params.id, '2º Lote',    venda.nome, seq++)
+    for (let i = 0; i < (venda.quantidade_mesa || 0) * 4; i++)   insC.run(uuidv4(), req.params.id, 'Mesa',       venda.nome, seq++)
+  })()
 
   const vendaConfirmada = db.prepare('SELECT * FROM ticket_vendas WHERE id = ?').get(req.params.id)
   const checkins = db.prepare('SELECT * FROM ticket_checkins WHERE venda_id = ? ORDER BY seq').all(req.params.id)

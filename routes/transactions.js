@@ -15,6 +15,9 @@ router.get('/', (req, res) => {
 router.post('/', (req, res) => {
   const { tipo, categoria, valor, descricao, data, pago_por } = req.body;
   if (!tipo || !valor) return res.status(400).json({ error: 'Tipo e valor obrigatórios' });
+  if (!['receita', 'custo'].includes(tipo)) return res.status(400).json({ error: 'Tipo deve ser "receita" ou "custo"' });
+  const valorNum = parseFloat(valor);
+  if (isNaN(valorNum) || valorNum <= 0 || valorNum > 1000000) return res.status(400).json({ error: 'Valor deve ser um número positivo' });
 
   const eventoId = req.eventoId
   const id = uuidv4();
@@ -24,7 +27,7 @@ router.post('/', (req, res) => {
   db.prepare(`
     INSERT INTO transactions (id, tipo, categoria, valor, descricao, data, pago_por, evento_id)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-  `).run(id, tipo, categoria || 'outros', parseFloat(valor), descricao || null, data || null, pagador, eventoId);
+  `).run(id, tipo, categoria || 'outros', valorNum, descricao || null, data || null, pagador, eventoId);
 
   res.status(201).json(db.prepare('SELECT * FROM transactions WHERE id = ?').get(id));
 });
@@ -32,10 +35,13 @@ router.post('/', (req, res) => {
 router.put('/:id', (req, res) => {
   const { tipo, categoria, valor, descricao, data, pago_por } = req.body;
   if (!tipo || !valor) return res.status(400).json({ error: 'Tipo e valor obrigatórios' });
+  if (!['receita', 'custo'].includes(tipo)) return res.status(400).json({ error: 'Tipo deve ser "receita" ou "custo"' });
+  const valorNum = parseFloat(valor);
+  if (isNaN(valorNum) || valorNum <= 0 || valorNum > 1000000) return res.status(400).json({ error: 'Valor deve ser um número positivo' });
   const pagador = tipo === 'custo' && SOCIAS.includes(pago_por) ? pago_por : null;
   const result = db.prepare(`
     UPDATE transactions SET tipo=?, categoria=?, valor=?, descricao=?, data=?, pago_por=? WHERE id=?
-  `).run(tipo, categoria || 'outros', parseFloat(valor), descricao || null, data || null, pagador, req.params.id);
+  `).run(tipo, categoria || 'outros', valorNum, descricao || null, data || null, pagador, req.params.id);
   if (result.changes === 0) return res.status(404).json({ error: 'Transação não encontrada' });
   res.json(db.prepare('SELECT * FROM transactions WHERE id = ?').get(req.params.id));
 });
@@ -60,7 +66,7 @@ router.get('/summary', (req, res) => {
 
   const reinvestimento = lucro > 0 ? lucro * 0.5 : 0;
   const distribuido    = lucro > 0 ? lucro * 0.5 : 0;
-  const share = distribuido / 3;
+  const share = lucro > 0 ? distribuido / 3 : lucro / 3;
 
   // Quanto cada sócia pagou de despesas do próprio bolso
   const reembolsos = {};

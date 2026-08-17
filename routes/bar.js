@@ -12,9 +12,13 @@ router.get('/cardapio', (req, res) => {
 router.post('/cardapio', (req, res) => {
   const { nome, categoria, preco, custo } = req.body
   if (!nome || preco == null) return res.status(400).json({ error: 'Nome e preço obrigatórios' })
+  const precoNum = parseFloat(preco)
+  const custoNum = parseFloat(custo) || 0
+  if (isNaN(precoNum) || precoNum < 0 || precoNum > 10000) return res.status(400).json({ error: 'Preço deve ser um número positivo' })
+  if (isNaN(custoNum) || custoNum < 0 || custoNum > 10000) return res.status(400).json({ error: 'Custo deve ser um número positivo' })
   const id = uuidv4()
   db.prepare('INSERT INTO cardapio (id, nome, categoria, preco, custo) VALUES (?, ?, ?, ?, ?)')
-    .run(id, nome.trim(), categoria || 'bebida', parseFloat(preco), parseFloat(custo) || 0)
+    .run(id, nome.trim(), categoria || 'bebida', precoNum, custoNum)
   res.status(201).json(db.prepare('SELECT * FROM cardapio WHERE id = ?').get(id))
 })
 
